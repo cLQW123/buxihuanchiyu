@@ -65,7 +65,11 @@ def capture_audio_diagnostic_input(audio_class, directory):
     @functools.wraps(original)
     def decode(self, latent, *args, **kwargs):
         # This diagnostic tensor is never consumed by the submitted generator.
-        torch.save(latent.detach().cpu(), Path(directory) / 'diagnostic-audio-input.pt')
+        # The strict decoder mode also surrounds this wrapper. Disable dispatch
+        # only for the unchanged-dtype host copy and serialization; the original
+        # model call below must retain every active numerical dispatch mode.
+        with torch._C._DisableTorchDispatch():
+            torch.save(latent.detach().cpu(), Path(directory) / 'diagnostic-audio-input.pt')
         return original(self, latent, *args, **kwargs)
 
     audio_class.decode = decode
