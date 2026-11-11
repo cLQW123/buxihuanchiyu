@@ -11,10 +11,10 @@
 #ifdef ENABLE_KUNLUN_API
 #include "kunlun/swiglu_kunlun.h"
 #endif
-#ifdef ENABLE_METAX_API
+#if defined(ENABLE_METAX_API) || defined(ENABLE_HYGON_API)
 #if defined(ENABLE_NINETOOTHED)
 #include "ninetoothed/swiglu.h"
-#else
+#elif defined(ENABLE_METAX_API)
 #include "metax/swiglu_metax_cuda.h"
 #endif
 #endif
@@ -75,7 +75,11 @@ __INFINI_C infiniStatus_t infiniopCreateSwiGLUDescriptor(
         CREATE_CUDA(INFINI_DEVICE_QY, nvidia);
 #endif
 #ifdef ENABLE_HYGON_API
+#ifdef ENABLE_NINETOOTHED
+        CREATE(INFINI_DEVICE_HYGON, ninetoothed);
+#else
         CREATE_CUDA(INFINI_DEVICE_HYGON, nvidia);
+#endif
 #endif
 #ifdef ENABLE_KUNLUN_API
         CREATE(INFINI_DEVICE_KUNLUN, kunlun);
@@ -139,7 +143,11 @@ __INFINI_C infiniStatus_t infiniopGetSwiGLUWorkspaceSize(infiniopSwiGLUDescripto
         GET_CUDA(INFINI_DEVICE_QY, nvidia);
 #endif
 #ifdef ENABLE_HYGON_API
+#ifdef ENABLE_NINETOOTHED
+        GET(INFINI_DEVICE_HYGON, ninetoothed);
+#else
         GET_CUDA(INFINI_DEVICE_HYGON, nvidia);
+#endif
 #endif
 #ifdef ENABLE_KUNLUN_API
         GET(INFINI_DEVICE_KUNLUN, kunlun);
@@ -209,7 +217,11 @@ __INFINI_C infiniStatus_t infiniopSwiGLU(
         CALCULATE_CUDA(INFINI_DEVICE_QY, nvidia);
 #endif
 #ifdef ENABLE_HYGON_API
+#ifdef ENABLE_NINETOOTHED
+        CALCULATE(INFINI_DEVICE_HYGON, ninetoothed);
+#else
         CALCULATE_CUDA(INFINI_DEVICE_HYGON, nvidia);
+#endif
 #endif
 #ifdef ENABLE_KUNLUN_API
         CALCULATE(INFINI_DEVICE_KUNLUN, kunlun);
@@ -274,7 +286,11 @@ infiniopDestroySwiGLUDescriptor(infiniopSwiGLUDescriptor_t desc) {
         DELETE_CUDA(INFINI_DEVICE_QY, nvidia);
 #endif
 #ifdef ENABLE_HYGON_API
+#ifdef ENABLE_NINETOOTHED
+        DELETE(INFINI_DEVICE_HYGON, ninetoothed);
+#else
         DELETE_CUDA(INFINI_DEVICE_HYGON, nvidia);
+#endif
 #endif
 #ifdef ENABLE_KUNLUN_API
         DELETE(INFINI_DEVICE_KUNLUN, kunlun);

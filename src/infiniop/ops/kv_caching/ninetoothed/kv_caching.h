@@ -1,5 +1,5 @@
-#ifndef KV_CACHING_H
-#define KV_CACHING_H
+#ifndef INFINIOP_NINETOOTHED_KV_CACHING_H
+#define INFINIOP_NINETOOTHED_KV_CACHING_H
 
 #include "../../../handle.h"
 #include "../../../operator.h"
@@ -98,4 +98,4 @@ private:
 };
 } // namespace op::kv_caching::ninetoothed
 
-#endif // KV_CACHING_H
+#endif // INFINIOP_NINETOOTHED_KV_CACHING_H

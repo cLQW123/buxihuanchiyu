@@ -70,8 +70,8 @@ public:
         const auto causal_variant_{2};
         const auto dtype_{_dtype};
 
-        constexpr auto block_size_m_{256};
-        constexpr auto block_size_n_{64};
+        constexpr auto block_size_m_{32};
+        constexpr auto block_size_n_{32};
 
         if (launch_flash_attention(stream,
                                    query,

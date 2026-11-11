@@ -24,8 +24,7 @@ def arrangement(
         .unsqueeze(1)
         .unsqueeze(2)
         .unsqueeze(3)
-        .unsqueeze(4)
-        .expand((-1, *k_arranged.shape))
+        .expand((-1, *k_arranged.shape[1:]))
     )
 
     return (
@@ -61,7 +60,9 @@ def premake(emb_dim=None, dtype=None, block_size_m=None, block_size_n=None):
     )
 
     if emb_dim is not None:
-        for tensor in tensors:
+        # The fifth argument is one sequence offset per batch item; its length
+        # is independent of the attention head dimension.
+        for tensor in tensors[:4]:
             tensor.shape = tensor.shape[:-1] + (emb_dim,)
 
     return arrangement_, application, tensors

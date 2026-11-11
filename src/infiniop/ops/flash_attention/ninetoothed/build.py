@@ -14,6 +14,16 @@ def build():
     if any(var in os.environ for var in env_vars_to_check):
         return
 
+    if os.getenv("INFINICORE_NINETOOTHED_PROFILE") == "fl2va":
+        from .flash_attention_scaled import premake
+        return infiniop.ninetoothed.build.build(
+            premake,
+            dict(with_kv_cache=(0,), emb_dim=(64, 72, 128), is_causal=(0, 1),
+                 with_attn_mask=(0,), causal_variant=(2,),
+                 dtype=(ninetoothed.bfloat16,), block_size_m=(32,), block_size_n=(32,)),
+            caller="cuda", op_name="flash_attention",
+            output_dir=infiniop.ninetoothed.build.BUILD_DIRECTORY_PATH)
+
     with_kv_cache_values = (0,)
     emb_dim_values = (16, 32, 64, 128, 256)
     is_causal_values = (0, 1)

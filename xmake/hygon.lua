@@ -68,8 +68,7 @@ toolchain("hygon.toolchain")
 toolchain_end()
 
 rule("hygon.env")
-    -- Fix the deprecated warning by using add_orders
-    add_orders("cuda.env", "hygon.env")
+    add_deps("cuda.env", {order = true})
     after_load(function (target)
         -- This logic to remove CUDA-specific libs is correct and can remain
         local old = target:get("syslinks") or {}
@@ -289,7 +288,6 @@ target("infinicore_cpp_api")
         add_defines("ENABLE_ATEN")
         if FLASH_ATTN_ROOT and FLASH_ATTN_ROOT ~= "" then
             add_defines("ENABLE_FLASH_ATTN")
-            add_packages("pybind11")
         end
     end
 

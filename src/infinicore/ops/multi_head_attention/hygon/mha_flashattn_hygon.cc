@@ -1,4 +1,4 @@
-#if defined(ENABLE_HYGON_API) && defined(ENABLE_FLASH_ATTN)
+#if defined(ENABLE_HYGON_API) && defined(ENABLE_FLASH_ATTN) && !defined(ENABLE_NINETOOTHED)
 #include "infinicore/ops/mha.hpp"
 
 #include "../../../adaptor/flash_attn/hygon/flash_attn_hygon.hpp"

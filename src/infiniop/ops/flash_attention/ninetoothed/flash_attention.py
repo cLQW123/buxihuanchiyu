@@ -58,7 +58,10 @@ def arrangement(
 
     def arrange_total_kv_len(input, shape):
         arranged = input.tile((1,))
-        arranged = arranged.unsqueeze(1).unsqueeze(2).unsqueeze(3).expand(shape)
+        arranged = (
+            arranged.unsqueeze(1).unsqueeze(2).unsqueeze(3)
+            .expand((-1, *shape[1:]))
+        )
         return arranged
 
     def arrange_present_key_or_present_value(input):
@@ -183,7 +186,7 @@ def application_without_kv_cache(
         lse = ntl.full((query_i.shape[-2],), 1, dtype=ntl.float32)
         max = ntl.full((query_i.shape[-2],), float("-inf"), dtype=ntl.float32)
 
-        for j in range(-(-actual_kv_len // key.dtype.shape[0])):
+        for j in range((actual_kv_len + key.dtype.shape[0] - 1) // key.dtype.shape[0]):
             qk = ntl.dot(query_i, ntl.trans(key[j]))
 
             key_pos = key[j].offsets(-2)
@@ -209,7 +212,7 @@ def application_without_kv_cache(
             stable_qk = ntl.exp2(qk - next_max[:, None])
 
             alpha = ntl.exp2(max - next_max)
-            acc = acc * alpha[:, None] + ntl.dot(stable_qk.to(value[i].dtype), value[j])
+            acc = acc * alpha[:, None] + ntl.dot(stable_qk.to(value[j].dtype), value[j])
             max = next_max
             lse = lse * alpha + ntl.sum(stable_qk, 1)
 
@@ -238,6 +241,7 @@ def premake(
         Tensor(
             4,
             dtype=dtype,
+            other=0,
             shape_options=(None, None, None, {"constexpr": True, "upper_bound": 128}),
         )
         for _ in range(5)

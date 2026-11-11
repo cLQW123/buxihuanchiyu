@@ -2,6 +2,7 @@ import concurrent.futures
 import functools
 import inspect
 import itertools
+import os
 import pathlib
 
 import ninetoothed
@@ -20,7 +21,9 @@ def build(premake, constexpr_param_grid, caller, op_name, output_dir):
     combinations = []
     launches = []
 
-    with concurrent.futures.ProcessPoolExecutor() as executor:
+    workers = os.getenv("INFINICORE_NINETOOTHED_WORKERS")
+    max_workers = int(workers) if workers else None
+    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
         futures = []
 
         for combination in tuple(
@@ -99,16 +102,24 @@ def _make(premake, combination, caller, op_name, output_dir):
 
     kernel_name = f"{op_name}_{_generate_suffix(combination.values())}"
 
-    ninetoothed.make(
-        arrangement,
-        application,
-        tensors,
-        caller=caller,
-        kernel_name=kernel_name,
-        output_dir=output_dir,
-    )
-
     header = output_dir / f"{kernel_name}.h"
+    binary = output_dir / f"{kernel_name}.so"
+    if header.is_file() and binary.is_file() and binary.stat().st_size > 0:
+        print(f"Reusing NineToothed kernel: {kernel_name}", flush=True)
+    else:
+        ninetoothed.make(
+            arrangement,
+            application,
+            tensors,
+            caller=caller,
+            kernel_name=kernel_name,
+            output_dir=output_dir,
+            num_warps=int(os.environ["INFINICORE_NINETOOTHED_NUM_WARPS"])
+            if "INFINICORE_NINETOOTHED_NUM_WARPS" in os.environ else None,
+            num_stages=int(os.environ["INFINICORE_NINETOOTHED_NUM_STAGES"])
+            if "INFINICORE_NINETOOTHED_NUM_STAGES" in os.environ else None,
+        )
+
     param_names = ("stream",) + tuple(inspect.signature(application).parameters.keys())
     launch = f"""    if ({_generate_condition(combination)})
         return launch_{kernel_name}({", ".join(param_names)});"""

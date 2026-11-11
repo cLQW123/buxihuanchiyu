@@ -1,6 +1,7 @@
 add_rules("mode.debug", "mode.release")
-add_requires("boost", {configs = {stacktrace = true}})
-add_requires("pybind11")
+if is_mode("debug") then
+    add_requires("boost", {configs = {stacktrace = true}})
+end
 
 -- Define color codes
 local GREEN = '\27[0;32m'
@@ -12,10 +13,13 @@ if not PYTHON or PYTHON == "" then
     PYTHON = is_host("windows") and "python" or "python3"
 end
 
+local PYTORCH_INCLUDE_DIR = os.getenv("PYTORCH_INCLUDE_DIR") or "/usr/local/lib/python3.11/site-packages/torch/include"
+
 set_encodings("utf-8")
 
 add_includedirs("include")
 add_includedirs("third_party/spdlog/include")
+add_includedirs(PYTORCH_INCLUDE_DIR)
 
 if is_mode("debug") then
     add_defines("DEBUG_MODE")
@@ -855,7 +859,6 @@ target("infinicore_cpp_api")
     -- pybind11/embed.h for mha_kvcache branch
     if has_config("moore-gpu") and has_config("aten") and has_config("flash-attn") then
         add_defines("ENABLE_MOORE_MATE_FLASH_ATTN")
-        add_packages("pybind11")
     end
 
     before_build(function (target)
@@ -1054,7 +1057,7 @@ target("infinicore_cpp_api")
         -- Hygon links against a prebuilt flash-attn extension with a different ABI.
         -- Keep the platform-specific implementation under each op's hygon/ folder.
         add_files("src/infinicore/adaptor/flash_attn/hygon/*.cc")
-    else
+    elseif not (has_config("hygon-dcu") and has_config("ninetoothed")) then
         remove_files("src/infinicore/ops/*/hygon/*.cc")
     end
     if has_config("infiniops") and not has_config("nv-gpu")
@@ -1086,7 +1089,6 @@ target("_infinicore")
 
     set_default(false)
     add_rules("python.library", {soabi = true})
-    add_packages("pybind11")
     set_languages("cxx17")
 
     add_deps("infinicore_cpp_api")

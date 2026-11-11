@@ -5,6 +5,9 @@
 #if defined(ENABLE_NVIDIA_API) || defined(ENABLE_QY_API) || defined(ENABLE_ILUVATAR_API) || defined(ENABLE_ALI_API) || defined(ENABLE_HYGON_API)
 #include "nvidia/kv_caching_nvidia.cuh"
 #endif
+#if defined(ENABLE_HYGON_API) && defined(ENABLE_NINETOOTHED)
+#include "ninetoothed/kv_caching.h"
+#endif
 #if defined(ENABLE_METAX_API)
 #include "metax/kv_caching_metax.h"
 #endif
@@ -44,7 +47,11 @@ __INFINI_C infiniStatus_t infiniopCreateKVCachingDescriptor(
         CREATE(INFINI_DEVICE_ALI, nvidia);
 #endif
 #ifdef ENABLE_HYGON_API
+#ifdef ENABLE_NINETOOTHED
+        CREATE(INFINI_DEVICE_HYGON, ninetoothed);
+#else
         CREATE(INFINI_DEVICE_HYGON, nvidia);
+#endif
 #endif
 #if defined(ENABLE_METAX_API)
         CREATE(INFINI_DEVICE_METAX, metax);
@@ -82,7 +89,11 @@ __INFINI_C infiniStatus_t infiniopGetKVCachingWorkspaceSize(
         GET_SIZE(INFINI_DEVICE_ALI, nvidia);
 #endif
 #ifdef ENABLE_HYGON_API
+#ifdef ENABLE_NINETOOTHED
+        GET_SIZE(INFINI_DEVICE_HYGON, ninetoothed);
+#else
         GET_SIZE(INFINI_DEVICE_HYGON, nvidia);
+#endif
 #endif
 #if defined(ENABLE_METAX_API)
         GET_SIZE(INFINI_DEVICE_METAX, metax);
@@ -126,7 +137,11 @@ __INFINI_C infiniStatus_t infiniopKVCaching(
         CALCULATE(INFINI_DEVICE_ALI, nvidia);
 #endif
 #ifdef ENABLE_HYGON_API
+#ifdef ENABLE_NINETOOTHED
+        CALCULATE(INFINI_DEVICE_HYGON, ninetoothed);
+#else
         CALCULATE(INFINI_DEVICE_HYGON, nvidia);
+#endif
 #endif
 #if defined(ENABLE_METAX_API)
         CALCULATE(INFINI_DEVICE_METAX, metax);
@@ -162,7 +177,11 @@ __INFINI_C infiniStatus_t infiniopDestroyKVCachingDescriptor(
         DELETE(INFINI_DEVICE_ALI, nvidia);
 #endif
 #ifdef ENABLE_HYGON_API
+#ifdef ENABLE_NINETOOTHED
+        DELETE(INFINI_DEVICE_HYGON, ninetoothed);
+#else
         DELETE(INFINI_DEVICE_HYGON, nvidia);
+#endif
 #endif
 #if defined(ENABLE_METAX_API)
         DELETE(INFINI_DEVICE_METAX, metax);

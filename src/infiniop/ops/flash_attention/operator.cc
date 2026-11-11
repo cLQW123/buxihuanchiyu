@@ -3,7 +3,7 @@
 #include "infiniop/ops/flash_attention.h"
 
 #if defined(ENABLE_NINETOOTHED)
-#if defined(ENABLE_NVIDIA_API)
+#if defined(ENABLE_NVIDIA_API) || defined(ENABLE_HYGON_API)
 #include "ninetoothed/descriptor.h"
 #endif
 #endif
@@ -38,6 +38,9 @@ __INFINI_C infiniStatus_t infiniopCreateFlashAttentionDescriptor(
 #if defined(ENABLE_NVIDIA_API)
         CREATE(INFINI_DEVICE_NVIDIA, ninetoothed);
 #endif
+#if defined(ENABLE_HYGON_API)
+        CREATE(INFINI_DEVICE_HYGON, ninetoothed);
+#endif
 #endif
 #if defined(ENABLE_ASCEND)
         CREATE(INFINI_DEVICE_ASCEND, ascend);
@@ -63,6 +66,9 @@ __INFINI_C infiniStatus_t infiniopGetFlashAttentionWorkspaceSize(
 #if defined(ENABLE_NINETOOTHED)
 #if defined(ENABLE_NVIDIA_API)
         GET_SIZE(INFINI_DEVICE_NVIDIA, ninetoothed);
+#endif
+#if defined(ENABLE_HYGON_API)
+        GET_SIZE(INFINI_DEVICE_HYGON, ninetoothed);
 #endif
 #endif
     default:
@@ -94,6 +100,9 @@ __INFINI_C infiniStatus_t infiniopFlashAttention(
 #if defined(ENABLE_NVIDIA_API)
         CALCULATE(INFINI_DEVICE_NVIDIA, ninetoothed);
 #endif
+#if defined(ENABLE_HYGON_API)
+        CALCULATE(INFINI_DEVICE_HYGON, ninetoothed);
+#endif
 #endif
     default:
         return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
@@ -115,6 +124,9 @@ __INFINI_C infiniStatus_t infiniopDestroyFlashAttentionDescriptor(
 #if defined(ENABLE_NINETOOTHED)
 #if defined(ENABLE_NVIDIA_API)
         DESTROY(INFINI_DEVICE_NVIDIA, ninetoothed);
+#endif
+#if defined(ENABLE_HYGON_API)
+        DESTROY(INFINI_DEVICE_HYGON, ninetoothed);
 #endif
 #endif
     default:
