@@ -7,6 +7,7 @@
 #include <infinicore/ops/cast.hpp>
 #include <infinicore/ops/distributed/allgather.hpp>
 #include <infinicore/ops/embedding.hpp>
+#include <infinicore/ops/flash_attention.hpp>
 #include <infinicore/ops/index_copy.hpp>
 #include <infinicore/ops/mha.hpp>
 #include <infinicore/ops/mrope.hpp>
@@ -14,10 +15,13 @@
 #include <infinicore/ops/silu.hpp>
 #include <infinicore/ops/swiglu.hpp>
 #include <infinicore/ops/timestep_embedding.hpp>
+#include <infinicore/context/context.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <tuple>
@@ -54,8 +58,13 @@ infinicore::Tensor gather_rows(const infinicore::Tensor &table,
 infinicore::Tensor apply_adaln(const infinicore::Tensor &normalized,
                                const infinicore::Tensor &scale,
                                const infinicore::Tensor &shift) {
-    auto scaled = infinicore::op::mul(normalized, scale);
-    return infinicore::op::add(infinicore::op::add(normalized, scaled), shift);
+    // Match the reference's BF16 rounding at (1 + scale), then at the
+    // multiplication. Reassociation as x + x * scale changes both boundaries.
+    auto one_storage = infinicore::Tensor::ones({1}, scale->dtype(), scale->device());
+    auto one = one_storage->as_strided(
+        scale->shape(), infinicore::Strides(scale->shape().size(), 0));
+    auto factor = infinicore::op::add(scale, one);
+    return infinicore::op::add(infinicore::op::mul(normalized, factor), shift);
 }
 
 void require_tensor(const std::optional<infinicore::Tensor> &tensor,
@@ -174,7 +183,26 @@ infinicore::Tensor MiniMaxH3Attention::forward(
         query = query_squeezed->unsqueeze(0);
         key = key_squeezed->unsqueeze(0);
     }
-    auto output = infinicore::op::mha(query, key, value, std::nullopt, scale_, false);
+    infinicore::Tensor output;
+    if (query->device().getType() == infinicore::Device::Type::HYGON) {
+        if (sequence_length > static_cast<size_t>(std::numeric_limits<int32_t>::max())) {
+            throw std::runtime_error("MiniMaxH3Attention: sequence length exceeds int32 range");
+        }
+        // The NineToothed FlashAttention interface uses BHSD views and one
+        // valid KV length per batch item. Only host metadata is constructed here.
+        std::vector<int32_t> lengths(batch_size, static_cast<int32_t>(sequence_length));
+        auto total_kv_len = infinicore::Tensor::empty(
+            {batch_size}, infinicore::DataType::I32, query->device());
+        infinicore::context::setDevice(query->device());
+        infinicore::context::memcpyH2D(
+            total_kv_len->data(), lengths.data(), lengths.size() * sizeof(int32_t), false);
+        output = infinicore::op::flash_attention(
+            query->permute({0, 2, 1, 3}), key->permute({0, 2, 1, 3}),
+            value->permute({0, 2, 1, 3}), total_kv_len, scale_, false);
+        output = output->permute({0, 2, 1, 3})->contiguous();
+    } else {
+        output = infinicore::op::mha(query, key, value, std::nullopt, scale_, false);
+    }
     output = output->view({batch_size, sequence_length, inner_dim_});
     return linear_forward(out_proj_, output);
 }

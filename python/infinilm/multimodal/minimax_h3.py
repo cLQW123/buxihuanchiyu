@@ -30,6 +30,12 @@ def _runtime_device_type(device: str) -> str:
     return _DEVICE_TYPE_MAP.get(device.lower(), device.lower())
 
 
+def _synchronize_torch_cuda() -> None:
+    """Complete producers before tensors cross the Torch/InfiniCore boundary."""
+    for device_id in range(torch.cuda.device_count()):
+        torch.cuda.synchronize(device_id)
+
+
 @dataclass(frozen=True)
 class MiniMaxH3TransformerInputs:
     """Packed FL2VA inputs expected by the native MiniMax-H3 transformer."""
@@ -105,27 +111,10 @@ def minimax_h3_rotary_cache(
     rope_theta: float = 10000.0,
     dtype: torch.dtype = torch.bfloat16,
 ) -> torch.Tensor:
-    """Build H3's continuous 3-axis NeoX RoPE cache on-device."""
+    """Build H3's rotary cache using a numerically validated NineToothed kernel."""
+    from .ninetoothed_h3_rope import rotary_cache
 
-    if position_ids.ndim != 2 or position_ids.shape[1] != 3:
-        raise ValueError("position_ids must have shape [sequence_length, 3]")
-    inv_freq = 1.0 / (
-        rope_theta
-        ** (
-            torch.arange(
-                0,
-                2 * rope_freq_dim,
-                2,
-                dtype=torch.float32,
-                device=position_ids.device,
-            )
-            / (2 * rope_freq_dim)
-        )
-    )
-    frequencies = (
-        position_ids.float().unsqueeze(-1) * inv_freq.view(1, 1, -1)
-    ).flatten(1)
-    return torch.cat((frequencies.cos(), frequencies.sin()), dim=-1).to(dtype)
+    return rotary_cache(position_ids, rope_freq_dim, rope_theta, dtype)
 
 
 class _MiniMaxH3NativeQwen3VLModel(torch.nn.Module):
@@ -394,6 +383,7 @@ class MiniMaxH3ConditionEncoder(Qwen3VLForConditionalGeneration):
     def encode(self, model_inputs: Mapping[str, Any]) -> torch.Tensor:
         native_inputs = self._prepare_native_inputs(model_inputs)
         input_ids = native_inputs.pop("input_ids")
+        _synchronize_torch_cuda()
         output = self.engine.forward_raw(input_ids, **native_inputs)
         return MiniMaxH3TransformerRunner._to_torch(output["logits"], self.torch_device)
 
@@ -455,6 +445,7 @@ class MiniMaxH3TransformerRunner:
 
     @staticmethod
     def _to_torch(tensor: infinicore.Tensor, device: torch.device) -> torch.Tensor:
+        _synchronize_torch_cuda()
         output = torch.empty(
             tuple(tensor.shape),
             dtype=infinicore.utils.to_torch_dtype(tensor.dtype),
@@ -462,6 +453,7 @@ class MiniMaxH3TransformerRunner:
         )
         infinicore.from_torch(output).copy_(tensor)
         infinicore.sync_device()
+        _synchronize_torch_cuda()
         return output
 
     def __call__(
@@ -488,6 +480,7 @@ class MiniMaxH3TransformerRunner:
         native_inputs = {
             name: self._to_infinicore(tensor) for name, tensor in torch_inputs.items()
         }
+        _synchronize_torch_cuda()
         output = self.engine.forward_raw(None, **native_inputs)
         video = output["logits"]
         audio = output["hidden_states"]

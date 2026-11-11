@@ -2,6 +2,8 @@
 #include "../../global_state/global_state.hpp"
 #include "infinicore/ops/linear.hpp"
 #include "infinicore/ops/linear_allreduce.hpp"
+#include "../ninetoothed_fp32_linear.hpp"
+#include <cstdlib>
 #include <optional>
 
 namespace infinilm::quantization {
@@ -60,6 +62,13 @@ infinicore::Tensor NoneQuantization::forward_allreduce(
                               ? input
                               : input->contiguous();
     auto weight = params.at("weight");
+    const char *fp32_reduction = std::getenv("SGCUP_TP_FP32");
+    if (fp32_reduction && std::string(fp32_reduction) == "1" && !has_bias &&
+        !weight_prepacked_ && input->device().getType() == infinicore::Device::Type::HYGON &&
+        input->dtype() == infinicore::DataType::BF16 && weight->dtype() == input->dtype()) {
+        return infinilm::layers::ninetoothed_bridge::linear_allreduce_fp32(
+            input_contiguous, weight, communicator);
+    }
     std::optional<infinicore::Tensor> bias_opt;
     if (has_bias) {
         bias_opt = params.at("bias");

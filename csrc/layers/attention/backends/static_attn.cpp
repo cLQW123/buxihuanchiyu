@@ -4,6 +4,8 @@
 #include "infinicore/ops.hpp"
 #include "infinicore/ops/per_tensor_dequant_i8.hpp"
 #include "infinicore/ops/per_tensor_quant_i8.hpp"
+#include <cstdlib>
+#include <string>
 
 namespace infinilm::layers::attention::backends {
 
@@ -57,8 +59,10 @@ infinicore::Tensor StaticAttentionImpl::forward(const AttentionLayer &layer,
     auto [k_total, v_total] = do_kv_cache_update(layer, k_permuted, v_permuted, kv_cache, past_sequence_lengths.value());
 
     infinicore::Tensor attn_output;
-    if (false) {
-        // experimental nineoothed flash attention
+    const char *ninetoothed_flash = std::getenv("INFINILM_HYGON_NINETOOTHED_FLASH");
+    if (q_rope->device().getType() == infinicore::Device::Type::HYGON &&
+        ninetoothed_flash && std::string(ninetoothed_flash) == "1") {
+        // The deployment validates NineToothed support before enabling this path.
         attn_output = infinicore::op::flash_attention(q_reshaped, k_total, v_total, total_sequence_lengths.value(), scale_, true);
         attn_output = attn_output->permute({0, 2, 1, 3})
                           ->contiguous()

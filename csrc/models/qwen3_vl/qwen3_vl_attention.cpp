@@ -1,4 +1,5 @@
 #include "qwen3_vl_attention.hpp"
+#include "../../layers/normalization/qwen_rms_ninetoothed.hpp"
 
 #include "../../global_state/global_state.hpp"
 #include "../../layers/attention/attention.hpp"
@@ -97,10 +98,10 @@ infinicore::Tensor Qwen3VLAttention::forward_static_(
     const size_t seq_len = hidden_states->size(1);
     auto [q, k, v] = qkv_proj_->forward_split(hidden_mutable);
 
-    q = q_norm_->forward(
-        q->view({batch_size * seq_len, num_attention_heads_, head_dim_}));
-    k = k_norm_->forward(
-        k->view({batch_size * seq_len, num_key_value_heads_, head_dim_}));
+    q = infinilm::layers::normalization::qwen_rms(
+        q->view({batch_size * seq_len, num_attention_heads_, head_dim_}), q_norm_);
+    k = infinilm::layers::normalization::qwen_rms(
+        k->view({batch_size * seq_len, num_key_value_heads_, head_dim_}), k_norm_);
     std::tie(q, k) = mrope_->forward(q, k, position_ids);
 
     auto q_reshaped = q->view({batch_size, seq_len, num_attention_heads_, head_dim_});
@@ -119,8 +120,8 @@ infinicore::Tensor Qwen3VLAttention::forward_paged_(
     const size_t seq_len = hidden_states->size(1);
     auto [q, k, v] = qkv_proj_->forward_split(hidden_mutable);
 
-    q = q_norm_->forward(q->view({seq_len, num_attention_heads_, head_dim_}));
-    k = k_norm_->forward(k->view({seq_len, num_key_value_heads_, head_dim_}));
+    q = infinilm::layers::normalization::qwen_rms(q->view({seq_len, num_attention_heads_, head_dim_}), q_norm_);
+    k = infinilm::layers::normalization::qwen_rms(k->view({seq_len, num_key_value_heads_, head_dim_}), k_norm_);
     std::tie(q, k) = mrope_->forward(q, k, position_ids);
 
     auto v_reshaped = v->view({seq_len, num_key_value_heads_, head_dim_});

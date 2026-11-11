@@ -438,6 +438,9 @@ void RankWorker::thread_loop() {
                         // Diffusion-style models return dense predictions and do
                         // not have a vocabulary dimension to sample from.
                         if (model_config_->get_or<bool>("skip_sampling", false)) {
+                            // Dense predictions cross the engine boundary immediately.
+                            // Complete this rank's producers before reporting readiness.
+                            infinicore::context::syncStream();
                             auto output_ids = infinicore::Tensor::empty(
                                 {0}, infinicore::DataType::I64,
                                 infinicore::Device::cpu());

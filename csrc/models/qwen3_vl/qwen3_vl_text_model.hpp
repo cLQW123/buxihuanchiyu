@@ -5,6 +5,7 @@
 #include "qwen3_vl_attention.hpp"
 
 #include <infinicore/nn/embedding.hpp>
+#include "../../layers/normalization/qwen_rms_ninetoothed.hpp"
 #include <infinicore/nn/rmsnorm.hpp>
 #include <infinicore/tensor.hpp>
 
@@ -14,8 +15,20 @@
 namespace infinilm::models::qwen3_vl {
 
 using Qwen3VLMLP = infinilm::layers::MLP;
-using Qwen3VLDecoderLayer = infinilm::layers::causal_lm_templates::TextDecoderLayer<Qwen3VLAttention,
-                                                                                    Qwen3VLMLP>;
+class Qwen3VLDecoderLayer : public infinilm::layers::causal_lm_templates::TextDecoderLayer<Qwen3VLAttention,Qwen3VLMLP> {
+ using Base = infinilm::layers::causal_lm_templates::TextDecoderLayer<Qwen3VLAttention,Qwen3VLMLP>;
+public:
+ using Base::Base;
+ std::tuple<infinicore::Tensor,infinicore::Tensor> forward(const infinicore::Tensor &positions, infinicore::Tensor &hidden_states, infinicore::Tensor &residual) {
+  residual = residual ? infinicore::op::add(residual,hidden_states) : hidden_states;
+  hidden_states = infinilm::layers::normalization::qwen_rms(residual,this->input_layernorm_);
+  hidden_states = this->self_attn_->forward(positions,hidden_states);
+  residual = infinicore::op::add(residual,hidden_states);
+  hidden_states = infinilm::layers::normalization::qwen_rms(residual,this->post_attention_layernorm_);
+  hidden_states = this->mlp_->forward(hidden_states);
+  return {hidden_states,residual};
+ }
+};
 
 struct Qwen3VLDeepStackEmbedding {
     infinicore::Tensor features;
