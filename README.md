@@ -50,5 +50,3 @@ python scripts/continuous.py --model-path "$MODEL_PATH" \
 InfiniLM 包含 H3 原生推理与多卡同步、Qwen RMSNorm 桥接、严格神经 VAE、随机数与采样、归一化、调度器、位置布局及初始化缓冲区。InfiniCore 包含新增九齿卷积、归一化、矩阵乘法、Attention、KV/SwiGLU 调度、连续 RoPE 与 VAE 辅助算子。NineToothed 包含 HIP AOT launcher、平台编译兼容和标量指针的广播修复。
 
 图像读取和缩放、分词及音视频文件封装沿用原许可组件；神经网络视频解码使用九齿算子。原模型权重、统一样例、官方入口和比较脚本保持不变。数值偏差、失败记录、公开源码版本和最终相似度须以报告及实测证据为准。
-
-持久 AFS 在临时文件发布时可能返回 EXDEV。工程 scripts/sitecustomize.py 仅在该错误下用同目标目录临时文件复制后原子替换，保证编译缓存发布；不改任何模型或数值计算。env.sh 只加载本工程的这份宿主文件兼容代码。
