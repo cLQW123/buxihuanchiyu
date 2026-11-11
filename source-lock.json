@@ -26,8 +26,15 @@
       "base_commit": "82cba6cf2200919b5d12c86adbea60cbfb516040"
     }
   },
-  "source_manifest": "evidence/source-manifest-v322.json",
-  "source_manifest_status": "v322 exact source and package file hashes verified locally; full technical acceptance pending",
-  "source_manifest_aggregate_sha256": "dce8c70877308b2243ee46833b526168c9f3f7773f5be623650c0af5137a0a87",
-  "source_manifest_file_count": 4563
+  "source_manifest": "evidence/source-manifest-v323.json",
+  "source_manifest_status": "source and package hashes verified; v323 differs from runtime-start v322 only in README text",
+  "source_manifest_aggregate_sha256": "03c72c62cdf408ac97ca0ed9fbc3d336e5599e091437a43e53c138a3c3d1a2c5",
+  "source_manifest_file_count": 4563,
+  "runtime_start_source_manifest": "evidence/source-manifest-v322.json",
+  "runtime_start_manifest_delta": {
+    "changed_files": [
+      "README.md"
+    ],
+    "scope": "documentation only; source branch code and runtime scripts unchanged"
+  }
 }

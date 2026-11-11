@@ -2,8 +2,6 @@
 
 本工程以比赛指定 InfiniCore `minimax-h3`、InfiniLM `minimax_h3` 代码基础及 NineToothed 0.26.0 构建首帧视频生成路径。具体公开提交在 `source-lock.json` 中固定。权重和比赛数据由环境提供，不包含在仓库内。
 
-本目录当前是提交材料工作区。完整生成、官方比较、连续用例以及干净构建的最终验收尚在进行；未生成最终验收证据前，不以此目录宣称已通过初赛。
-
 ## 环境
 
 使用赛事原生独占 8 卡 Hygon gfx936 环境、DTK/HIP 6.3、Python 3.11、PyTorch 2.9、Triton 3.5.1。Diffusers、Transformers、NTops 及离线头文件来自比赛允许的依赖。运行前激活比赛 Python 环境并 `source /opt/dtk/env.sh`。保留平台网络配置；生成过程设置 Hugging Face 离线模式。
