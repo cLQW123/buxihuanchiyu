@@ -1,0 +1,15 @@
+[submodule "Projects/InfiniCore"]
+	path = Projects/InfiniCore
+	url = https://github.com/cLQW123/buxihuanchiyu.git
+	branch = sgcup-infinicore-20261111
+[submodule "Projects/InfiniLM"]
+	path = Projects/InfiniLM
+	url = https://github.com/cLQW123/buxihuanchiyu.git
+	branch = sgcup-infinilm-20261111
+[submodule "Projects/ninetoothed"]
+	path = Projects/ninetoothed
+	url = https://github.com/cLQW123/buxihuanchiyu.git
+	branch = sgcup-ninetoothed-20261111
+[submodule "Projects/ntops"]
+	path = Projects/ntops
+	url = https://github.com/InfiniTensor/ntops.git

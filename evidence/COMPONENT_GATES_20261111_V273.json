@@ -1,0 +1,22 @@
+{
+  "status": "component gates passed; complete generation and clean build pending",
+  "evidence_archive_sha256": "9889c34de269497a581db5b4555ea16ca584ca10f3c93172abfd9ef8cad6cbd5",
+  "rng": {
+    "cases": 30,
+    "max_abs": 4.76837158203125e-07,
+    "all_state_equal": true,
+    "low_precision_exact": true
+  },
+  "positions": {
+    "cases": 6,
+    "max_abs": 7.105427357601002e-15
+  },
+  "boundary_integration": {
+    "cases": 22,
+    "all_pass": true
+  },
+  "initializers": {
+    "cases": 9,
+    "max_abs": 2.5331974029541016e-07
+  }
+}

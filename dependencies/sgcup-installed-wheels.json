@@ -1,0 +1,244 @@
+{
+  "target": "/public/home/aclsylqidf/infinifabric-users/users/707cc303b3894f1985b40bbfbdd65637/python-deps-v19",
+  "diffusers_commit": "f53d552036a0d1bd5570782a39cd40cfabf112bc",
+  "wheels": [
+    {
+      "file": "huggingface_hub-1.28.0-py3-none-any.whl",
+      "sha256": "58a8bacb03072edfc38067065e9dc24bbb34805410fcd36a1632de0b329660bb",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "mpmath-1.3.0-py3-none-any.whl",
+      "sha256": "a0b2b9fe80bbcd81a6647ff13108738cfb482d481d826cc0e02f5b35e5c88d2c",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "certifi-2026.10.23-py3-none-any.whl",
+      "sha256": "e9b54de76e530bb6cf0ccd036787103acb58fd42ba930ea8bf948ddbaa2f61d1",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "exceptiongroup-1.3.1-py3-none-any.whl",
+      "sha256": "a7a39a3bd276781e98394987d3a5701d0c4edffb633bb7a5144577f82c773598",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "click-8.5.0-py3-none-any.whl",
+      "sha256": "255bc9599cf7748b4b1a446ccc735421bd08a2ae529a8b88597d3de5664ee360",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "httpx-0.28.1-py3-none-any.whl",
+      "sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "pytest-9.1.1-py3-none-any.whl",
+      "sha256": "37a86b45efb9a47a61a36449063e8e18d0cab3161329fc099eb21783169c4f0c",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "tokenizers-0.22.2-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+      "sha256": "369cc9fc8cc10cb24143873a0d95438bb8ee257bb80c71989e3ee290e8d72c67",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "typer-0.27.3-py3-none-any.whl",
+      "sha256": "e50022f28b82a86313e54501317a1db64bf8f8d036ff8cfe5ca7e47675454aff",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "hf_xet-1.8.0-cp38-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "sha256": "29dab7c904cd1914a0439c6e1306c12c7497c8bd32290fbe563ebf51ca4b6d6d",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "fsspec-2026.9.0-py3-none-any.whl",
+      "sha256": "8dd6e646e99ea382bd85f97a45e6b526a442d79423a7dc673f1e2756d05fcb5f",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "regex-2026.5.9-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+      "sha256": "2a661a7d270a61f7cf460caee8b9fa2d5ef9e5c681234bcb9e0fe14f488e7dfc",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "filelock-4.2.9-py3-none-any.whl",
+      "sha256": "a379c50a729e5b68c8519a4d26489f755d9769960a236ecd838190e2a78db2e9",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "annotated_doc-0.0.5-py3-none-any.whl",
+      "sha256": "117bac03a25ede5df5440e855b32d556049ca169ead221505badf432fed4b101",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "mdurl-0.1.2-py3-none-any.whl",
+      "sha256": "84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "markupsafe-3.0.4-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+      "sha256": "6da83a088f8ef93b2d483a8232a4dbf4d69d3d8496b568a03c56becac43e1808",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "accelerate-1.14.0-py3-none-any.whl",
+      "sha256": "e94390c2863b873be18f623f9df48a0d8fe5eff13ea7f1a00092b0a7904888c6",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "tqdm-4.70.1-py3-none-any.whl",
+      "sha256": "c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "shellingham-1.5.4-py2.py3-none-any.whl",
+      "sha256": "7ecfff8f2fd72616f7481040475a65b2bf8af90a56c89140852d1120324e8686",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "rich-15.0.0-py3-none-any.whl",
+      "sha256": "33bd4ef74232fb73fe9279a257718407f169c09b78a87ad3d296f548e27de0bb",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "anyio-4.16.0-py3-none-any.whl",
+      "sha256": "c66ae634e0b8228396b801741beb3294326d4b6102f7bba4041c0dfb58c29026",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "einops-0.8.2-py3-none-any.whl",
+      "sha256": "54058201ac7087911181bfec4af6091bb59380360f069276601256a76af08193",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "h11-0.16.0-py3-none-any.whl",
+      "sha256": "63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "pyyaml-6.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+      "sha256": "b8bb0864c5a28024fac8a632c443c87c5aa6f215c0b126c449ae1a150412f31d",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "iniconfig-2.3.1-py3-none-any.whl",
+      "sha256": "9121e2c1fdb355232495be3194c8dfe87ccc2d5dee45947b78e68f499790d7a7",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl",
+      "sha256": "076a2d2f923fd4821644f5ba89f059523da90dc9014e85f8e45a5774ca5bc6f9",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "sympy-1.13.1-py3-none-any.whl",
+      "sha256": "db36cdc64bf61b9b24578b6f7bab1ecdd2452cf008f34faa33776680c26d66f8",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "packaging-26.3-py3-none-any.whl",
+      "sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "safetensors-0.8.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+      "sha256": "fd6f3f93c9a0a7cc2788ee63fb763353d4bd2e89b0751bc78fcf7dda00bea774",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "pygments-2.21.0-py3-none-any.whl",
+      "sha256": "2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "markdown_it_py-4.2.0-py3-none-any.whl",
+      "sha256": "9f7ebbcd14fe59494226453aed97c1070d83f8d24b6fc3a3bcf9a38092641c4a",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "idna-3.20-py3-none-any.whl",
+      "sha256": "ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "pillow-12.2.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "sha256": "8bd7903a5f2a4545f6fd5935c90058b89d30045568985a71c79f5fd6edf9b91e",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "imageio-2.37.4-py3-none-any.whl",
+      "sha256": "1ab2e22c8debf700f24c3ac43e8f95f3b3a8110c83b93411e97b4b0b2cd1c7e6",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "janus-2.0.0-py3-none-any.whl",
+      "sha256": "7e6449d34eab04cd016befbd7d8c0d8acaaaab67cb59e076a69149f9031745f9",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "pluggy-1.7.0-py3-none-any.whl",
+      "sha256": "7dd7b0d8832ba3cb632c306926ded123429211b83641b35dc5c41ad2d34f9bec",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "httpcore-1.0.9-py3-none-any.whl",
+      "sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "typing_extensions-4.16.0-py3-none-any.whl",
+      "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "tomli-2.5.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+      "sha256": "d7e369fd63331746182360977b1892bfc215476a30d61612d732425311639f56",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "av-18.1.0-cp311-abi3-manylinux_2_28_x86_64.whl",
+      "sha256": "8a032e8d8ebc73dec079364b9b4a6837638a2d106e8472314e685ffbf163e700",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "xxhash-4.0.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+      "sha256": "f8e86a0b5e28418162dfa68d6dc4bee873ea2efbd6ee67789903a0ee37a81c14",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "jinja2-3.1.6-py3-none-any.whl",
+      "sha256": "85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67",
+      "origin": "supplied offline wheelhouse"
+    },
+    {
+      "file": "diffusers-0.40.0.dev0-py3-none-any.whl",
+      "sha256": "7bef01cc07bb0b29be1f6657c48bc0b8b7cac7c19206d24f4affb615a68578b4"
+    },
+    {
+      "file": "lazy_loader-0.6-py3-none-any.whl",
+      "sha256": "77253be3391b06124a0e16105bd663b6c54470af1a9ca8e1cf026f38d58ed056"
+    },
+    {
+      "file": "networkx-3.6.1-py3-none-any.whl",
+      "sha256": "d47fbf302e7d9cbbb9e2555a0d267983d2aa476bac30e90dfbe5669bd57f3762"
+    },
+    {
+      "file": "scikit_image-0.26.0-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl",
+      "sha256": "74aa5518ccea28121f57a95374581d3b979839adc25bb03f289b1bc9b99c58af"
+    },
+    {
+      "file": "scipy-1.17.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+      "sha256": "43af8d1f3bea642559019edfe64e9b11192a8978efbd1539d7bc2aaa23d92de4"
+    },
+    {
+      "file": "soundfile-0.14.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+      "sha256": "1e38bac1853412871318e82a1ba69a8be677619b56025bbfcccdb41b6cafe82d"
+    },
+    {
+      "file": "tifffile-2026.3.3-py3-none-any.whl",
+      "sha256": "e8be15c94273113d31ecb7aa3a39822189dd11c4967e3cc88c178f1ad2fd1170"
+    }
+  ]
+}

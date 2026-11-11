@@ -1,0 +1,1494 @@
+diff --git a/csrc/engine/rank_worker.cpp b/csrc/engine/rank_worker.cpp
+index 1384e9b..8538201 100644
+--- a/csrc/engine/rank_worker.cpp
++++ b/csrc/engine/rank_worker.cpp
+@@ -438,6 +438,9 @@ void RankWorker::thread_loop() {
+                         // Diffusion-style models return dense predictions and do
+                         // not have a vocabulary dimension to sample from.
+                         if (model_config_->get_or<bool>("skip_sampling", false)) {
++                            // Dense predictions cross the engine boundary immediately.
++                            // Complete this rank's producers before reporting readiness.
++                            infinicore::context::syncStream();
+                             auto output_ids = infinicore::Tensor::empty(
+                                 {0}, infinicore::DataType::I64,
+                                 infinicore::Device::cpu());
+diff --git a/csrc/layers/attention/backends/static_attn.cpp b/csrc/layers/attention/backends/static_attn.cpp
+index e95bc03..252873c 100644
+--- a/csrc/layers/attention/backends/static_attn.cpp
++++ b/csrc/layers/attention/backends/static_attn.cpp
+@@ -4,6 +4,8 @@
+ #include "infinicore/ops.hpp"
+ #include "infinicore/ops/per_tensor_dequant_i8.hpp"
+ #include "infinicore/ops/per_tensor_quant_i8.hpp"
++#include <cstdlib>
++#include <string>
+ 
+ namespace infinilm::layers::attention::backends {
+ 
+@@ -57,8 +59,10 @@ infinicore::Tensor StaticAttentionImpl::forward(const AttentionLayer &layer,
+     auto [k_total, v_total] = do_kv_cache_update(layer, k_permuted, v_permuted, kv_cache, past_sequence_lengths.value());
+ 
+     infinicore::Tensor attn_output;
+-    if (false) {
+-        // experimental nineoothed flash attention
++    const char *ninetoothed_flash = std::getenv("INFINILM_HYGON_NINETOOTHED_FLASH");
++    if (q_rope->device().getType() == infinicore::Device::Type::HYGON &&
++        ninetoothed_flash && std::string(ninetoothed_flash) == "1") {
++        // The deployment validates NineToothed support before enabling this path.
+         attn_output = infinicore::op::flash_attention(q_reshaped, k_total, v_total, total_sequence_lengths.value(), scale_, true);
+         attn_output = attn_output->permute({0, 2, 1, 3})
+                           ->contiguous()
+diff --git a/csrc/layers/ninetoothed_fp32_linear.hpp b/csrc/layers/ninetoothed_fp32_linear.hpp
+new file mode 100644
+index 0000000..7ca370a
+--- /dev/null
++++ b/csrc/layers/ninetoothed_fp32_linear.hpp
+@@ -0,0 +1,65 @@
++#pragma once
++#include <infinicore/context/context.hpp>
++#include <infinicore/ops/cast.hpp>
++#include <infinicore/ops/distributed/allreduce.hpp>
++#include <infinicore/tensor.hpp>
++#include <array>
++#include <cstdint>
++#include <cstdlib>
++#include <dlfcn.h>
++#include <stdexcept>
++#include <string>
++
++namespace infinilm::layers::ninetoothed_bridge {
++struct TensorArgument {
++    void *data;
++    const uint64_t *shape;
++    const int64_t *strides;
++};
++using MatmulLauncher = int (*)(void *, TensorArgument, TensorArgument,
++                               TensorArgument, TensorArgument);
++
++// The numerical kernel is generated from NineToothed. This adapter forms
++// storage views and schedules FP32 communication before the output cast.
++inline infinicore::Tensor linear_allreduce_fp32(
++    const infinicore::Tensor &input, const infinicore::Tensor &weight,
++    infinicclComm_t communicator) {
++    using namespace infinicore;
++    if (input->dtype() != DataType::BF16 || weight->dtype() != DataType::BF16 ||
++        weight->ndim() != 2 || input->shape().back() != weight->size(1)) {
++        throw std::invalid_argument("NineToothed FP32 linear requires matching BF16 matrix storage");
++    }
++    const char *directory = std::getenv("SGCUP_TP_MATMUL_KERNEL_DIR");
++    if (!directory) throw std::runtime_error("SGCUP_TP_MATMUL_KERNEL_DIR is required");
++    static thread_local MatmulLauncher launch = nullptr;
++    if (!launch) {
++        const std::string name = "sgcup_tp_matmul_f32_v158";
++        void *library = dlopen((std::string(directory) + "/" + name + ".so").c_str(),
++                               RTLD_NOW | RTLD_LOCAL);
++        if (!library) throw std::runtime_error(dlerror());
++        launch = reinterpret_cast<MatmulLauncher>(dlsym(library, ("launch_" + name).c_str()));
++        if (!launch) throw std::runtime_error("Missing NineToothed FP32 matmul launcher");
++    }
++    context::setDevice(input->device());
++    const uint64_t k = weight->size(1), n = weight->size(0), rows = input->numel() / k;
++    auto a = input->contiguous()->view({rows, k});
++    auto b = weight->permute({1, 0});
++    auto partial = Tensor::empty({rows, n}, DataType::F32, input->device());
++    std::array<uint64_t, 2> ashape{rows, k}, bshape{k, n}, cshape{rows, n};
++    std::array<int64_t, 2> astrides{static_cast<int64_t>(k), 1};
++    std::array<int64_t, 2> bstrides{b->strides()[0], b->strides()[1]};
++    std::array<int64_t, 2> cstrides{static_cast<int64_t>(n), 1};
++    int status = launch(context::getStream(),
++                        {a->data(), ashape.data(), astrides.data()},
++                        {b->data(), bshape.data(), bstrides.data()},
++                        {partial->data(), cshape.data(), cstrides.data()},
++                        {nullptr, nullptr, nullptr});
++    if (status) throw std::runtime_error("NineToothed FP32 matmul launch failed: " + std::to_string(status));
++    op::distributed::allreduce_(partial, partial, INFINICCL_SUM, communicator);
++    auto shape = input->shape();
++    shape.back() = n;
++    auto output = Tensor::empty(shape, input->dtype(), input->device());
++    op::cast_(output, partial->view(shape));
++    return output;
++}
++} // namespace infinilm::layers::ninetoothed_bridge
+diff --git a/csrc/layers/normalization/qwen_rms_ninetoothed.hpp b/csrc/layers/normalization/qwen_rms_ninetoothed.hpp
+new file mode 100644
+index 0000000..40e7810
+--- /dev/null
++++ b/csrc/layers/normalization/qwen_rms_ninetoothed.hpp
+@@ -0,0 +1,44 @@
++#pragma once
++#include <infinicore/nn/rmsnorm.hpp>
++#include <infinicore/context/context.hpp>
++#include <array>
++#include <cstdint>
++#include <cstdlib>
++#include <dlfcn.h>
++#include <map>
++#include <stdexcept>
++#include <string>
++namespace infinilm::layers::normalization {
++struct QwenNTTensor { void *data; const uint64_t *shape; const int64_t *strides; };
++using QwenNTLaunch = int (*)(void *, QwenNTTensor, QwenNTTensor, QwenNTTensor, QwenNTTensor);
++inline infinicore::Tensor qwen_rms(const infinicore::Tensor &input, const std::shared_ptr<infinicore::nn::RMSNorm> &norm) {
++ if (input->device().getType() != infinicore::Device::Type::HYGON) return norm->forward(input);
++ const size_t width = input->shape().back();
++ if (input->dtype() != infinicore::DataType::BF16 || (width != 128 && width != 5120)) throw std::runtime_error("Unsupported NineToothed Qwen RMSNorm dtype or width");
++ const char *directory = std::getenv("SGCUP_QWEN_RMS_KERNEL_DIR");
++ if (!directory) throw std::runtime_error("SGCUP_QWEN_RMS_KERNEL_DIR is required");
++ static thread_local std::map<size_t,QwenNTLaunch> launches;
++ auto found = launches.find(width);
++ if (found == launches.end()) {
++  const std::string name = "sgcup_qwen_rms_v140_" + std::to_string(width);
++  void *library = dlopen((std::string(directory) + "/" + name + ".so").c_str(), RTLD_NOW | RTLD_LOCAL);
++  if (!library) throw std::runtime_error(dlerror());
++  auto launch = reinterpret_cast<QwenNTLaunch>(dlsym(library, ("launch_" + name).c_str()));
++  if (!launch) throw std::runtime_error("Missing NineToothed Qwen RMSNorm launcher");
++  found = launches.emplace(width,launch).first;
++ }
++ auto x = input->contiguous()->view({input->numel()/width,width});
++ auto y = infinicore::Tensor::empty(x->shape(),x->dtype(),x->device());
++ auto weight = norm->weight()->contiguous();
++ std::array<uint64_t,2> shape{input->numel()/width,width};
++ std::array<int64_t,2> strides{static_cast<int64_t>(width),1};
++ std::array<uint64_t,1> wshape{width}; std::array<int64_t,1> wstrides{1};
++ double eps = norm->eps();
++ infinicore::context::setDevice(input->device());
++ int status = found->second(infinicore::context::getStream(),
++   {x->data(),shape.data(),strides.data()}, {weight->data(),wshape.data(),wstrides.data()},
++   {y->data(),shape.data(),strides.data()}, {&eps,nullptr,nullptr});
++ if (status) throw std::runtime_error("NineToothed Qwen RMSNorm launch failed: " + std::to_string(status));
++ return y->view(input->shape());
++}
++}
+diff --git a/csrc/layers/quantization/none_quantization.cpp b/csrc/layers/quantization/none_quantization.cpp
+index 3184da9..c931194 100644
+--- a/csrc/layers/quantization/none_quantization.cpp
++++ b/csrc/layers/quantization/none_quantization.cpp
+@@ -2,6 +2,8 @@
+ #include "../../global_state/global_state.hpp"
+ #include "infinicore/ops/linear.hpp"
+ #include "infinicore/ops/linear_allreduce.hpp"
++#include "../ninetoothed_fp32_linear.hpp"
++#include <cstdlib>
+ #include <optional>
+ 
+ namespace infinilm::quantization {
+@@ -60,6 +62,13 @@ infinicore::Tensor NoneQuantization::forward_allreduce(
+                               ? input
+                               : input->contiguous();
+     auto weight = params.at("weight");
++    const char *fp32_reduction = std::getenv("SGCUP_TP_FP32");
++    if (fp32_reduction && std::string(fp32_reduction) == "1" && !has_bias &&
++        !weight_prepacked_ && input->device().getType() == infinicore::Device::Type::HYGON &&
++        input->dtype() == infinicore::DataType::BF16 && weight->dtype() == input->dtype()) {
++        return infinilm::layers::ninetoothed_bridge::linear_allreduce_fp32(
++            input_contiguous, weight, communicator);
++    }
+     std::optional<infinicore::Tensor> bias_opt;
+     if (has_bias) {
+         bias_opt = params.at("bias");
+diff --git a/csrc/models/minimax_h3/minimax_h3_transformer.cpp b/csrc/models/minimax_h3/minimax_h3_transformer.cpp
+index 4751213..9850a1c 100644
+--- a/csrc/models/minimax_h3/minimax_h3_transformer.cpp
++++ b/csrc/models/minimax_h3/minimax_h3_transformer.cpp
+@@ -7,6 +7,7 @@
+ #include <infinicore/ops/cast.hpp>
+ #include <infinicore/ops/distributed/allgather.hpp>
+ #include <infinicore/ops/embedding.hpp>
++#include <infinicore/ops/flash_attention.hpp>
+ #include <infinicore/ops/index_copy.hpp>
+ #include <infinicore/ops/mha.hpp>
+ #include <infinicore/ops/mrope.hpp>
+@@ -14,10 +15,13 @@
+ #include <infinicore/ops/silu.hpp>
+ #include <infinicore/ops/swiglu.hpp>
+ #include <infinicore/ops/timestep_embedding.hpp>
++#include <infinicore/context/context.hpp>
+ 
+ #include <algorithm>
+ #include <cmath>
+ #include <cstddef>
++#include <cstdint>
++#include <limits>
+ #include <stdexcept>
+ #include <string>
+ #include <tuple>
+@@ -54,8 +58,13 @@ infinicore::Tensor gather_rows(const infinicore::Tensor &table,
+ infinicore::Tensor apply_adaln(const infinicore::Tensor &normalized,
+                                const infinicore::Tensor &scale,
+                                const infinicore::Tensor &shift) {
+-    auto scaled = infinicore::op::mul(normalized, scale);
+-    return infinicore::op::add(infinicore::op::add(normalized, scaled), shift);
++    // Match the reference's BF16 rounding at (1 + scale), then at the
++    // multiplication. Reassociation as x + x * scale changes both boundaries.
++    auto one_storage = infinicore::Tensor::ones({1}, scale->dtype(), scale->device());
++    auto one = one_storage->as_strided(
++        scale->shape(), infinicore::Strides(scale->shape().size(), 0));
++    auto factor = infinicore::op::add(scale, one);
++    return infinicore::op::add(infinicore::op::mul(normalized, factor), shift);
+ }
+ 
+ void require_tensor(const std::optional<infinicore::Tensor> &tensor,
+@@ -174,7 +183,26 @@ infinicore::Tensor MiniMaxH3Attention::forward(
+         query = query_squeezed->unsqueeze(0);
+         key = key_squeezed->unsqueeze(0);
+     }
+-    auto output = infinicore::op::mha(query, key, value, std::nullopt, scale_, false);
++    infinicore::Tensor output;
++    if (query->device().getType() == infinicore::Device::Type::HYGON) {
++        if (sequence_length > static_cast<size_t>(std::numeric_limits<int32_t>::max())) {
++            throw std::runtime_error("MiniMaxH3Attention: sequence length exceeds int32 range");
++        }
++        // The NineToothed FlashAttention interface uses BHSD views and one
++        // valid KV length per batch item. Only host metadata is constructed here.
++        std::vector<int32_t> lengths(batch_size, static_cast<int32_t>(sequence_length));
++        auto total_kv_len = infinicore::Tensor::empty(
++            {batch_size}, infinicore::DataType::I32, query->device());
++        infinicore::context::setDevice(query->device());
++        infinicore::context::memcpyH2D(
++            total_kv_len->data(), lengths.data(), lengths.size() * sizeof(int32_t), false);
++        output = infinicore::op::flash_attention(
++            query->permute({0, 2, 1, 3}), key->permute({0, 2, 1, 3}),
++            value->permute({0, 2, 1, 3}), total_kv_len, scale_, false);
++        output = output->permute({0, 2, 1, 3})->contiguous();
++    } else {
++        output = infinicore::op::mha(query, key, value, std::nullopt, scale_, false);
++    }
+     output = output->view({batch_size, sequence_length, inner_dim_});
+     return linear_forward(out_proj_, output);
+ }
+diff --git a/csrc/models/qwen3_vl/qwen3_vl_attention.cpp b/csrc/models/qwen3_vl/qwen3_vl_attention.cpp
+index 3967499..3da1953 100644
+--- a/csrc/models/qwen3_vl/qwen3_vl_attention.cpp
++++ b/csrc/models/qwen3_vl/qwen3_vl_attention.cpp
+@@ -1,4 +1,5 @@
+ #include "qwen3_vl_attention.hpp"
++#include "../../layers/normalization/qwen_rms_ninetoothed.hpp"
+ 
+ #include "../../global_state/global_state.hpp"
+ #include "../../layers/attention/attention.hpp"
+@@ -97,10 +98,10 @@ infinicore::Tensor Qwen3VLAttention::forward_static_(
+     const size_t seq_len = hidden_states->size(1);
+     auto [q, k, v] = qkv_proj_->forward_split(hidden_mutable);
+ 
+-    q = q_norm_->forward(
+-        q->view({batch_size * seq_len, num_attention_heads_, head_dim_}));
+-    k = k_norm_->forward(
+-        k->view({batch_size * seq_len, num_key_value_heads_, head_dim_}));
++    q = infinilm::layers::normalization::qwen_rms(
++        q->view({batch_size * seq_len, num_attention_heads_, head_dim_}), q_norm_);
++    k = infinilm::layers::normalization::qwen_rms(
++        k->view({batch_size * seq_len, num_key_value_heads_, head_dim_}), k_norm_);
+     std::tie(q, k) = mrope_->forward(q, k, position_ids);
+ 
+     auto q_reshaped = q->view({batch_size, seq_len, num_attention_heads_, head_dim_});
+@@ -119,8 +120,8 @@ infinicore::Tensor Qwen3VLAttention::forward_paged_(
+     const size_t seq_len = hidden_states->size(1);
+     auto [q, k, v] = qkv_proj_->forward_split(hidden_mutable);
+ 
+-    q = q_norm_->forward(q->view({seq_len, num_attention_heads_, head_dim_}));
+-    k = k_norm_->forward(k->view({seq_len, num_key_value_heads_, head_dim_}));
++    q = infinilm::layers::normalization::qwen_rms(q->view({seq_len, num_attention_heads_, head_dim_}), q_norm_);
++    k = infinilm::layers::normalization::qwen_rms(k->view({seq_len, num_key_value_heads_, head_dim_}), k_norm_);
+     std::tie(q, k) = mrope_->forward(q, k, position_ids);
+ 
+     auto v_reshaped = v->view({seq_len, num_key_value_heads_, head_dim_});
+diff --git a/csrc/models/qwen3_vl/qwen3_vl_text_model.hpp b/csrc/models/qwen3_vl/qwen3_vl_text_model.hpp
+index 415e089..f88789f 100644
+--- a/csrc/models/qwen3_vl/qwen3_vl_text_model.hpp
++++ b/csrc/models/qwen3_vl/qwen3_vl_text_model.hpp
+@@ -5,6 +5,7 @@
+ #include "qwen3_vl_attention.hpp"
+ 
+ #include <infinicore/nn/embedding.hpp>
++#include "../../layers/normalization/qwen_rms_ninetoothed.hpp"
+ #include <infinicore/nn/rmsnorm.hpp>
+ #include <infinicore/tensor.hpp>
+ 
+@@ -14,8 +15,20 @@
+ namespace infinilm::models::qwen3_vl {
+ 
+ using Qwen3VLMLP = infinilm::layers::MLP;
+-using Qwen3VLDecoderLayer = infinilm::layers::causal_lm_templates::TextDecoderLayer<Qwen3VLAttention,
+-                                                                                    Qwen3VLMLP>;
++class Qwen3VLDecoderLayer : public infinilm::layers::causal_lm_templates::TextDecoderLayer<Qwen3VLAttention,Qwen3VLMLP> {
++ using Base = infinilm::layers::causal_lm_templates::TextDecoderLayer<Qwen3VLAttention,Qwen3VLMLP>;
++public:
++ using Base::Base;
++ std::tuple<infinicore::Tensor,infinicore::Tensor> forward(const infinicore::Tensor &positions, infinicore::Tensor &hidden_states, infinicore::Tensor &residual) {
++  residual = residual ? infinicore::op::add(residual,hidden_states) : hidden_states;
++  hidden_states = infinilm::layers::normalization::qwen_rms(residual,this->input_layernorm_);
++  hidden_states = this->self_attn_->forward(positions,hidden_states);
++  residual = infinicore::op::add(residual,hidden_states);
++  hidden_states = infinilm::layers::normalization::qwen_rms(residual,this->post_attention_layernorm_);
++  hidden_states = this->mlp_->forward(hidden_states);
++  return {hidden_states,residual};
++ }
++};
+ 
+ struct Qwen3VLDeepStackEmbedding {
+     infinicore::Tensor features;
+diff --git a/python/infinilm/multimodal/minimax_h3.py b/python/infinilm/multimodal/minimax_h3.py
+index ed4180d..876d11f 100644
+--- a/python/infinilm/multimodal/minimax_h3.py
++++ b/python/infinilm/multimodal/minimax_h3.py
+@@ -30,6 +30,12 @@ def _runtime_device_type(device: str) -> str:
+     return _DEVICE_TYPE_MAP.get(device.lower(), device.lower())
+ 
+ 
++def _synchronize_torch_cuda() -> None:
++    """Complete producers before tensors cross the Torch/InfiniCore boundary."""
++    for device_id in range(torch.cuda.device_count()):
++        torch.cuda.synchronize(device_id)
++
++
+ @dataclass(frozen=True)
+ class MiniMaxH3TransformerInputs:
+     """Packed FL2VA inputs expected by the native MiniMax-H3 transformer."""
+@@ -105,27 +111,10 @@ def minimax_h3_rotary_cache(
+     rope_theta: float = 10000.0,
+     dtype: torch.dtype = torch.bfloat16,
+ ) -> torch.Tensor:
+-    """Build H3's continuous 3-axis NeoX RoPE cache on-device."""
+-
+-    if position_ids.ndim != 2 or position_ids.shape[1] != 3:
+-        raise ValueError("position_ids must have shape [sequence_length, 3]")
+-    inv_freq = 1.0 / (
+-        rope_theta
+-        ** (
+-            torch.arange(
+-                0,
+-                2 * rope_freq_dim,
+-                2,
+-                dtype=torch.float32,
+-                device=position_ids.device,
+-            )
+-            / (2 * rope_freq_dim)
+-        )
+-    )
+-    frequencies = (
+-        position_ids.float().unsqueeze(-1) * inv_freq.view(1, 1, -1)
+-    ).flatten(1)
+-    return torch.cat((frequencies.cos(), frequencies.sin()), dim=-1).to(dtype)
++    """Build H3's rotary cache using a numerically validated NineToothed kernel."""
++    from .ninetoothed_h3_rope import rotary_cache
++
++    return rotary_cache(position_ids, rope_freq_dim, rope_theta, dtype)
+ 
+ 
+ class _MiniMaxH3NativeQwen3VLModel(torch.nn.Module):
+@@ -394,6 +383,7 @@ class MiniMaxH3ConditionEncoder(Qwen3VLForConditionalGeneration):
+     def encode(self, model_inputs: Mapping[str, Any]) -> torch.Tensor:
+         native_inputs = self._prepare_native_inputs(model_inputs)
+         input_ids = native_inputs.pop("input_ids")
++        _synchronize_torch_cuda()
+         output = self.engine.forward_raw(input_ids, **native_inputs)
+         return MiniMaxH3TransformerRunner._to_torch(output["logits"], self.torch_device)
+ 
+@@ -455,6 +445,7 @@ class MiniMaxH3TransformerRunner:
+ 
+     @staticmethod
+     def _to_torch(tensor: infinicore.Tensor, device: torch.device) -> torch.Tensor:
++        _synchronize_torch_cuda()
+         output = torch.empty(
+             tuple(tensor.shape),
+             dtype=infinicore.utils.to_torch_dtype(tensor.dtype),
+@@ -462,6 +453,7 @@ class MiniMaxH3TransformerRunner:
+         )
+         infinicore.from_torch(output).copy_(tensor)
+         infinicore.sync_device()
++        _synchronize_torch_cuda()
+         return output
+ 
+     def __call__(
+@@ -488,6 +480,7 @@ class MiniMaxH3TransformerRunner:
+         native_inputs = {
+             name: self._to_infinicore(tensor) for name, tensor in torch_inputs.items()
+         }
++        _synchronize_torch_cuda()
+         output = self.engine.forward_raw(None, **native_inputs)
+         video = output["logits"]
+         audio = output["hidden_states"]
+diff --git a/python/infinilm/multimodal/ninetoothed_h3_rope.py b/python/infinilm/multimodal/ninetoothed_h3_rope.py
+new file mode 100644
+index 0000000..e872df9
+--- /dev/null
++++ b/python/infinilm/multimodal/ninetoothed_h3_rope.py
+@@ -0,0 +1,78 @@
++"""Storage-only Torch bridge to the validated NineToothed H3 rotary kernel.
++
++The generated kernel performs all frequency and trigonometric arithmetic.
++This module is prepared for integration; callers must configure a validated
++kernel directory before selecting it in the model adapter.
++"""
++import ctypes
++import functools
++import json
++import os
++from pathlib import Path
++
++
++class _TensorArgument(ctypes.Structure):
++    _fields_ = [("data", ctypes.c_void_p),
++                ("shape", ctypes.POINTER(ctypes.c_uint64)),
++                ("strides", ctypes.POINTER(ctypes.c_int64))]
++
++
++@functools.cache
++def _load_kernel(directory):
++    directory = Path(directory)
++    manifest = json.loads((directory / "validation.json").read_text())
++    if len(manifest.get("cases", ())) != 6 or not all(case.get("pass") for case in manifest["cases"]):
++        raise RuntimeError("H3 rotary kernel lacks its six required numeric checks")
++    input_kind = {
++        "F32 positions, BF16 output, frequency dimension16, theta10000": "float32",
++        "F64 positions, BF16 output, frequency dimension16, theta10000": "float64",
++    }.get(manifest.get("scope"))
++    if input_kind is None:
++        raise RuntimeError("H3 rotary kernel has a different validated configuration")
++    name = manifest["kernel"]
++    if Path(name).name != name:
++        raise RuntimeError("Invalid H3 rotary kernel name")
++    library = ctypes.CDLL(str(directory / (name + ".so")))
++    launch = getattr(library, "launch_" + name)
++    launch.argtypes = [ctypes.c_void_p] + [_TensorArgument] * 4
++    launch.restype = ctypes.c_int
++    return library, launch, input_kind
++
++
++def rotary_cache(position_ids, rope_freq_dim=16, rope_theta=10000.0, dtype=None):
++    import torch
++
++    if dtype is None:
++        dtype = torch.bfloat16
++    if rope_freq_dim != 16 or rope_theta != 10000.0 or dtype != torch.bfloat16:
++        raise NotImplementedError("Validated H3 rotary configuration is dim16/theta10000/BF16")
++    if position_ids.ndim != 2 or position_ids.shape[1] != 3:
++        raise ValueError("position_ids must have shape [tokens, 3]")
++    if position_ids.dtype not in (torch.float32, torch.float64) or position_ids.device.type != "cuda":
++        raise TypeError("Validated H3 rotary input is an F32 or F64 accelerator tensor")
++    directory = os.environ.get("SGCUP_H3_ROPE_KERNEL_DIR")
++    if not directory:
++        raise RuntimeError("SGCUP_H3_ROPE_KERNEL_DIR must point to validated generated kernels")
++    library, launch, input_kind = _load_kernel(directory)
++    if position_ids.dtype != getattr(torch, input_kind):
++        raise TypeError(f"H3 rotary kernel expects {input_kind}; got {position_ids.dtype}")
++    output = torch.empty((position_ids.shape[0], 2, 3, 16),
++                         dtype=dtype, device=position_ids.device)
++    if position_ids.shape[0] == 0:
++        return output.view(0, 96)
++    buffers = []
++    arguments = []
++    for tensor in (position_ids, output):
++        shape = (ctypes.c_uint64 * tensor.ndim)(*tensor.shape)
++        strides = (ctypes.c_int64 * tensor.ndim)(*tensor.stride())
++        buffers.extend((shape, strides))
++        arguments.append(_TensorArgument(tensor.data_ptr(), shape, strides))
++    ignored = _TensorArgument(None, None, None)
++    with torch.cuda.device(position_ids.device):
++        status = launch(ctypes.c_void_p(torch.cuda.current_stream().cuda_stream),
++                        *arguments, ignored, ignored)
++        if status:
++            raise RuntimeError(f"H3 rotary kernel launch failed with status {status}")
++        # The native engine consumes this result on its own runtime streams.
++        torch.cuda.synchronize(position_ids.device)
++    return output.view(position_ids.shape[0], 96)
+diff --git a/python/infinilm/multimodal/ninetoothed_initializers.py b/python/infinilm/multimodal/ninetoothed_initializers.py
+new file mode 100644
+index 0000000..5fadd1d
+--- /dev/null
++++ b/python/infinilm/multimodal/ninetoothed_initializers.py
+@@ -0,0 +1,41 @@
++"""Load-time VAE buffers; no Torch numerical initializer is used."""
++import functools
++import math
++import torch
++
++from infiniop.ops.vae_support.ninetoothed.initializers import (
++    premake_rotary, premake_filter, premake_normalize)
++from .ninetoothed_vae_encoder import _kernel
++
++
++def rotary_init(self, dim, theta=100.0, num_axes=3):
++    torch.nn.Module.__init__(self)
++    if dim % (2 * num_axes):
++        raise ValueError('Rotary dimensions must divide evenly over the axes')
++    count = dim // (2 * num_axes)
++    output = torch.empty(count, device='cuda', dtype=torch.float32)
++    _kernel(premake_rotary, count, float(theta))(output, count, float(theta))
++    self.register_buffer('inv_freq', output.cpu(), persistent=False)
++
++
++@functools.cache
++def _filter_buffer(cutoff, half_width, kernel_size):
++    if not 1 < kernel_size <= 128:
++        raise NotImplementedError('H3 Kaiser filter supports 2..128 taps')
++    attenuation = 2.285 * (kernel_size // 2 - 1) * math.pi * (4 * half_width) + 7.95
++    if attenuation > 50:
++        beta = 0.1102 * (attenuation - 8.7)
++    elif attenuation >= 21:
++        beta = 0.5842 * (attenuation - 21) ** 0.4 + 0.07886 * (attenuation - 21)
++    else:
++        beta = 0.0
++    unscaled = torch.empty(kernel_size, device='cuda', dtype=torch.float32)
++    output = torch.empty_like(unscaled)
++    _kernel(premake_filter, kernel_size, float(cutoff), beta)(
++        unscaled, kernel_size, float(cutoff), beta)
++    _kernel(premake_normalize)(unscaled, output)
++    return output.cpu().view(1, 1, kernel_size)
++
++
++def kaiser_sinc_filter1d(cutoff, half_width, kernel_size):
++    return _filter_buffer(cutoff, half_width, kernel_size).clone()
+diff --git a/python/infinilm/multimodal/ninetoothed_pipeline.py b/python/infinilm/multimodal/ninetoothed_pipeline.py
+new file mode 100644
+index 0000000..9095f69
+--- /dev/null
++++ b/python/infinilm/multimodal/ninetoothed_pipeline.py
+@@ -0,0 +1,180 @@
++"""NineToothed FL2VA boundary arithmetic, RNG, schedule and rotary layout.
++
++Neural VAE dispatch and the native InfiniLM engine are installed separately.
++"""
++from collections import Counter
++import functools
++import hashlib
++import inspect
++import json
++from pathlib import Path
++
++import torch
++
++from . import ninetoothed_pipeline_arithmetic as arithmetic
++from .ninetoothed_vae_encoder import pointwise, _kernel
++from .ninetoothed_random import randn_tensor
++from .ninetoothed_positions import build_packed_sequence
++from .ninetoothed_initializers import rotary_init, kaiser_sinc_filter1d
++from infiniop.ops.vae_support.ninetoothed.grid import premake as premake_grid
++
++
++def install_pipeline_arithmetic(evidence_path):
++    from diffusers.modular_pipelines.minimax_h3 import encoders, decoders, before_denoise
++    from diffusers.models.autoencoders import autoencoder_kl_minimax_h3 as video_vae
++    from diffusers.models.autoencoders import autoencoder_kl_minimax_h3_audio as audio_vae
++    from diffusers.schedulers.scheduling_minimax_h3 import (
++        MiniMaxH3Scheduler,
++        MiniMaxH3SchedulerOutput,
++    )
++
++    evidence = Path(evidence_path)
++    evidence.parent.mkdir(parents=True, exist_ok=True)
++    counts = Counter()
++    replacements = []
++    source_hashes = {}
++
++    def save():
++        evidence.write_text(json.dumps({
++            "scope": "pipeline arithmetic integration; neural VAE installed separately",
++            "rule_compliance": "requires full-generation and source-build evidence",
++            "pending": ["full-generation validation", "initialization-constant audit"],
++            "calls": dict(counts),
++            "original_source_sha256": source_hashes,
++        }, indent=2))
++
++    def replace(owner, name, function, *, static=False):
++        original = getattr(owner, name)
++        descriptor = inspect.getattr_static(owner, name) if static else original
++        label = owner.__name__ + "." + name
++        source_hashes[label] = hashlib.sha256(inspect.getsource(original).encode()).hexdigest()
++
++        @functools.wraps(original)
++        def wrapped(*args, **kwargs):
++            counts[label] += 1
++            try:
++                return function(*args, **kwargs)
++            finally:
++                save()
++
++        setattr(owner, name, staticmethod(wrapped) if static else wrapped)
++        replacements.append((owner, name, descriptor))
++
++    def encode_condition(vae, pixels, pixel_mean, pixel_std, encode_seed=42):
++        device = pixels.device
++        pixel_mean = torch.tensor(pixel_mean, device=device).view(1, -1, 1, 1, 1)
++        pixel_std = torch.tensor(pixel_std, device=device).view(1, -1, 1, 1, 1)
++        pixels = arithmetic.encode_pixels(pixels, pixel_mean, pixel_std)
++        posterior = vae.encode(pixels, return_dict=False)[0]
++        noise = randn_tensor(posterior.mean.shape,
++                             generator=torch.Generator().manual_seed(encode_seed),
++                             device=posterior.mean.device, dtype=posterior.mean.dtype)
++        counts["NineToothedRNG.posterior"] += 1
++        latent = arithmetic.combine_posterior(posterior.mean, posterior.std, noise)
++        latent = pointwise(latent, 0, dtype=torch.float16)
++        latent = pointwise(latent, 0, dtype=torch.float32).cpu()
++        mean = torch.tensor(vae.config.latents_mean).view(1, -1, 1, 1, 1)
++        std = torch.tensor(vae.config.latents_std).view(1, -1, 1, 1, 1)
++        return arithmetic.normalize_latents(latent, mean, std, device=device)
++
++    def video_decode(self, components, state):
++        block = self.get_block_state(state)
++        if block.output_type not in ("pil", "np", "pt"):
++            raise ValueError("Video output_type must be 'pil', 'np' or 'pt'")
++        device = components._execution_device
++        mean = torch.tensor(components.vae.config.latents_mean, device=device).view(1, -1, 1, 1, 1)
++        std = torch.tensor(components.vae.config.latents_std, device=device).view(1, -1, 1, 1, 1)
++        latent = arithmetic.denormalize_latents(block.latents, mean, std)
++        with torch.autocast(device_type=device.type, dtype=torch.float16,
++                            enabled=device.type == "cuda"):
++            video = components.vae.decode(latent, return_dict=False)[0]
++        mean = torch.tensor(components.pixel_mean, device=device).view(1, -1, 1, 1, 1)
++        std = torch.tensor(components.pixel_std, device=device).view(1, -1, 1, 1, 1)
++        video = arithmetic.decode_pixels(video, mean, std)
++        block.videos = components.video_processor.postprocess_video(video, output_type=block.output_type)
++        self.set_block_state(state, block)
++        return components, state
++
++    def audio_decode(self, components, state):
++        block = self.get_block_state(state)
++        device = components._execution_device
++        mean = torch.tensor(components.audio_vae.config.latents_mean, device=device).view(1, -1, 1)
++        std = torch.tensor(components.audio_vae.config.latents_std, device=device).view(1, -1, 1)
++        latent = arithmetic.denormalize_latents(block.audio_latents, mean, std)
++        audio = components.audio_vae.decode(latent, return_dict=False)[0]
++        block.audio = pointwise(audio, 0, dtype=torch.float32).permute(1, 0, 2)
++        block.sampling_rate = components.audio_sampling_rate
++        self.set_block_state(state, block)
++        return components, state
++
++    def scheduler_setup(self, num_inference_steps=None, device=None, sigmas=None):
++        destination = torch.device(device or 'cpu')
++        if sigmas is None:
++            if num_inference_steps is None or num_inference_steps < 2:
++                raise ValueError('set_timesteps requires at least two grid points')
++            count = int(num_inference_steps)
++            base = torch.empty(count, device='cuda', dtype=torch.float32)
++            _kernel(premake_grid, count, wide_step=False)(base, 1.0, 0.0)
++            numerator = pointwise(base, 2, self._shift)
++            denominator = pointwise(base, 2, self._shift - 1)
++            denominator = pointwise(denominator, 1, 1.0)
++            shifted = pointwise(numerator, 4, denominator).cpu()
++            # Collapse adjacent duplicate schedule entries as host control flow.
++            values = shifted.tolist()
++            values = [value for index, value in enumerate(values)
++                      if index == 0 or value != values[index - 1]]
++        else:
++            values = torch.as_tensor(sigmas, dtype=torch.float32).flatten().tolist()
++            if len(values) < 2 or values[-1] != 0.0 or any(
++                    first <= second for first, second in zip(values, values[1:])):
++                raise ValueError('sigmas must strictly decrease and end at zero')
++        accelerator_sigmas = torch.tensor(values, device='cuda', dtype=torch.float32)
++        timesteps = pointwise(accelerator_sigmas[:-1], 5, 1.0)
++        self.sigmas = accelerator_sigmas.to(destination)
++        self.timesteps = timesteps.to(destination)
++        self.num_inference_steps = len(values) - 1
++        self._step_index = None
++        self._begin_index = None
++
++    def scale_noise(self, sample, timestep, noise):
++        if not isinstance(timestep, torch.Tensor):
++            timestep = torch.tensor(timestep, device=sample.device, dtype=sample.dtype)
++        else:
++            timestep = pointwise(timestep.to(sample.device), 0, dtype=sample.dtype)
++        while timestep.ndim < sample.ndim:
++            timestep = timestep.unsqueeze(-1)
++        left = pointwise(timestep, 2, sample)
++        residual = pointwise(timestep, 5, 1.0)
++        right = pointwise(residual, 2, noise)
++        return pointwise(left, 1, right)
++
++    def scheduler_step(self, model_output, timestep, sample, return_dict=True):
++        if self.num_inference_steps is None:
++            raise ValueError("Call set_timesteps before step")
++        if isinstance(timestep, int) or (isinstance(timestep, torch.Tensor)
++                                        and not timestep.is_floating_point()):
++            raise ValueError("Use an actual scheduler timestep, not an integer index")
++        if self.step_index is None:
++            self._step_index = (self.index_for_timestep(timestep)
++                                if self._begin_index is None else self._begin_index)
++        if not isinstance(timestep, torch.Tensor):
++            timestep = torch.tensor(timestep, dtype=sample.dtype)
++        denoised = arithmetic.scheduler_denoise(sample, model_output, timestep)
++        result = arithmetic.scheduler_interpolate(
++            sample, denoised, self.sigmas[self.step_index], self.sigmas[self.step_index + 1])
++        self._step_index += 1
++        return MiniMaxH3SchedulerOutput(prev_sample=result) if return_dict else (result,)
++
++    replace(encoders, "encode_vae_condition", encode_condition)
++    replace(decoders.MiniMaxH3VideoDecodeStep, "__call__", video_decode)
++    replace(decoders.MiniMaxH3AudioDecodeStep, "__call__", audio_decode)
++    replace(MiniMaxH3Scheduler, "step", scheduler_step)
++    replace(MiniMaxH3Scheduler, "set_timesteps", scheduler_setup)
++    replace(MiniMaxH3Scheduler, "scale_noise", scale_noise)
++    replace(before_denoise, "randn_tensor", randn_tensor)
++    replace(before_denoise.MiniMaxH3PrepareLayoutStep, "build_packed_sequence",
++            build_packed_sequence, static=True)
++    replace(video_vae.MiniMaxH3VideoRotaryPosEmbed, "__init__", rotary_init)
++    replace(audio_vae, "kaiser_sinc_filter1d", kaiser_sinc_filter1d)
++    save()
++    return replacements
+diff --git a/python/infinilm/multimodal/ninetoothed_pipeline_arithmetic.py b/python/infinilm/multimodal/ninetoothed_pipeline_arithmetic.py
+new file mode 100644
+index 0000000..3a2b2b5
+--- /dev/null
++++ b/python/infinilm/multimodal/ninetoothed_pipeline_arithmetic.py
+@@ -0,0 +1,90 @@
++"""NineToothed arithmetic candidates for H3 pipeline boundaries.
++
++These helpers preserve intermediate storage casts instead of fusing across
++reference rounding boundaries. Integration, random-number generation, position
++construction and the complete pipeline still need separate validation.
++"""
++import torch
++import ninetoothed as nt
++
++from infiniop.ops.vae_support.ninetoothed.support import premake_pointwise
++from .ninetoothed_vae_encoder import _kernel, pointwise
++
++
++def _place(value, device):
++    return value if value.device == device else value.to(device=device)
++
++
++def _check_float(*values):
++    if any(value.dtype not in (torch.float16, torch.bfloat16, torch.float32)
++           for value in values):
++        raise NotImplementedError("Pipeline arithmetic currently supports F16/BF16/F32")
++
++
++def encode_pixels(pixels, mean, std):
++    if pixels.dtype == torch.uint8:
++        converted = torch.empty(pixels.shape, device=pixels.device, dtype=torch.float32)
++        _kernel(premake_pointwise, pixels.ndim, 0, input_dtype=nt.uint8,
++                other_dtype=nt.uint8, output_dtype=nt.float32)(
++                    pixels, pixels, converted, 0, -float("inf"), float("inf"))
++    else:
++        _check_float(pixels)
++        converted = pointwise(pixels, 0, dtype=torch.float32)
++    converted = pointwise(converted, 4, 255.0)
++    return normalize_latents(converted, mean, std, device=pixels.device)
++
++
++def normalize_latents(latents, mean, std, *, device):
++    """Compute (latents - mean) / std on the accelerator, then restore device."""
++    _check_float(latents, mean, std)
++    original_device = latents.device
++    result = pointwise(_place(latents, device), 3, _place(mean, device))
++    result = pointwise(result, 4, _place(std, device))
++    return _place(result, original_device)
++
++
++def denormalize_latents(latents, mean, std):
++    _check_float(latents, mean, std)
++    result = pointwise(latents, 2, _place(std, latents.device))
++    return pointwise(result, 1, _place(mean, latents.device))
++
++
++def combine_posterior(mean, std, noise):
++    """Combine supplied random noise; this helper does not implement RNG."""
++    _check_float(mean, std, noise)
++    scaled = pointwise(std, 2, _place(noise, std.device))
++    return pointwise(mean, 1, scaled)
++
++
++def decode_pixels(video, mean, std):
++    _check_float(video, mean, std)
++    video = pointwise(video, 0, dtype=torch.float32)
++    video = pointwise(video, 2, _place(std, video.device))
++    video = pointwise(video, 1, _place(mean, video.device))
++    return pointwise(video, 13, lower=0.0, upper=1.0)
++
++
++def scheduler_interpolate(sample, denoised, sigma, sigma_next):
++    """Reference scheduler interpolation with separate FP32 operations."""
++    _check_float(sample, denoised, sigma, sigma_next)
++    device = sample.device
++    current = pointwise(_place(sigma, device), 0, dtype=torch.float32)
++    following = pointwise(_place(sigma_next, device), 0, dtype=torch.float32)
++    ratio = pointwise(following, 4, current)
++    residual_ratio = pointwise(ratio, 5, 1.0)
++    current_sample = pointwise(sample, 0, dtype=torch.float32)
++    prediction = pointwise(denoised, 0, dtype=torch.float32)
++    left = pointwise(ratio, 2, current_sample)
++    right = pointwise(residual_ratio, 2, prediction)
++    output = pointwise(left, 1, right)
++    return pointwise(output, 0, dtype=sample.dtype)
++
++
++def scheduler_denoise(sample, model_output, timestep):
++    _check_float(sample, model_output, timestep)
++    timestep = pointwise(_place(timestep, sample.device), 0, dtype=sample.dtype)
++    sigma = pointwise(timestep, 5, 1.0)
++    while sigma.ndim < sample.ndim:
++        sigma = sigma.unsqueeze(-1)
++    scaled = pointwise(sigma, 2, model_output)
++    return pointwise(sample, 1, scaled)
+diff --git a/python/infinilm/multimodal/ninetoothed_positions.py b/python/infinilm/multimodal/ninetoothed_positions.py
+new file mode 100644
+index 0000000..c22e0f8
+--- /dev/null
++++ b/python/infinilm/multimodal/ninetoothed_positions.py
+@@ -0,0 +1,32 @@
++"""Packed FL2VA layout; numeric rotary coordinates are generated by NineToothed."""
++import torch
++
++from infiniop.ops.vae_support.ninetoothed.positions import premake
++from .ninetoothed_vae_encoder import _kernel
++
++
++def build_packed_sequence(text_token_tags, num_latent_frames, latent_height, latent_width,
++                          num_audio_latents, patch_size, audio_channels, audio_tag, video_tag,
++                          keyframe_anchors=()):
++    if any(anchor != 'first' for anchor in keyframe_anchors):
++        raise NotImplementedError('This competition adapter supports FL2VA first-frame anchors')
++    _, patch_h, patch_w = patch_size
++    rows_per_frame = (latent_height // patch_h) * (latent_width // patch_w)
++    text = text_token_tags.numel()
++    condition_rows = len(keyframe_anchors) * rows_per_frame
++    audio_start = text + condition_rows
++    video_start = audio_start + num_audio_latents * audio_channels
++    length = video_start + num_latent_frames * rows_per_frame
++    positions = torch.empty((length, 3), device='cuda', dtype=torch.float64)
++    config = (text, num_latent_frames, latent_height, latent_width, patch_h, patch_w,
++              num_audio_latents, audio_channels, len(keyframe_anchors))
++    _kernel(premake, *config)(positions, *config)
++    # Integer row addressing and modality labels are host-side layout metadata.
++    video_indices = torch.cat((torch.arange(text, audio_start), torch.arange(video_start, length)))
++    audio_indices = torch.arange(audio_start, video_start)
++    text_indices = torch.arange(text)
++    token_tags = torch.empty(length, dtype=torch.long)
++    token_tags[text_indices] = text_token_tags.to(device='cpu', dtype=torch.long)
++    token_tags[audio_indices] = audio_tag
++    token_tags[video_indices] = video_tag
++    return (positions.cpu(), token_tags, video_indices, audio_indices, text_indices, condition_rows, 0)
+diff --git a/python/infinilm/multimodal/ninetoothed_random.py b/python/infinilm/multimodal/ninetoothed_random.py
+new file mode 100644
+index 0000000..ffb52a0
+--- /dev/null
++++ b/python/infinilm/multimodal/ninetoothed_random.py
+@@ -0,0 +1,50 @@
++"""NineToothed normal draws with the pinned PyTorch CPU stream layout."""
++import math
++import struct
++
++import torch
++
++from infiniop.ops.vae_support.ninetoothed.random import premake_normal, premake_stream
++from .ninetoothed_vae_encoder import _DTYPES, _kernel
++
++
++def randn_tensor(shape, generator=None, device=None, dtype=None, layout=None):
++    device = torch.device(device or "cuda")
++    dtype = dtype or torch.float32
++    if isinstance(generator, list):
++        if len(generator) != shape[0]:
++            raise ValueError("Expected one CPU generator per batch member")
++        return torch.cat([randn_tensor((1, *shape[1:]), item, device, dtype, layout)
++                          for item in generator])
++    if generator is None or generator.device.type != "cpu":
++        raise NotImplementedError("The competition entry uses an explicit CPU generator")
++    if device.type != "cuda" or dtype not in _DTYPES:
++        raise NotImplementedError("NineToothed random requires CUDA/HIP and F32/F16/BF16")
++    count = math.prod(shape)
++    if count < 16:
++        raise NotImplementedError("Scalar cached-normal RNG is outside the FL2VA tensor path")
++    state_bytes = bytearray(generator.get_state().numpy().tobytes())
++    if len(state_bytes) != 5056:
++        raise RuntimeError("Unsupported CPU generator state ABI")
++    _, left, seeded, cursor = struct.unpack_from("<QiiQ", state_bytes)
++    if not seeded or not 1 <= left <= 624 or not 0 <= cursor <= 624:
++        raise RuntimeError("Invalid CPU MT19937 state")
++    state_words = struct.unpack_from("<624Q", state_bytes, 24)
++    state_storage = bytearray(struct.pack("<624I", *state_words))
++    state = torch.frombuffer(state_storage, dtype=torch.uint32).to(device)
++    consumed = count + (16 if count % 16 else 0)
++    raw = torch.empty(consumed, dtype=torch.uint32, device=device)
++    initial_twist = left == 1
++    _kernel(premake_stream, cursor, initial_twist)(state, raw, cursor, initial_twist)
++    output = torch.empty(count, dtype=dtype, device=device)
++    digits = {torch.float32: 24, torch.float16: 11, torch.bfloat16: 8}[dtype]
++    _kernel(premake_normal, count, _DTYPES[dtype])(raw, output, count, digits)
++    # Copy the new stream state back into the same generator. This preserves
++    # draw order when a later pipeline block uses the request generator.
++    returned_words = struct.unpack("<624I", state.cpu().numpy().tobytes())
++    struct.pack_into("<624Q", state_bytes, 24, *returned_words)
++    final_cursor = ((0 if initial_twist else cursor) + consumed - 1) % 624 + 1
++    struct.pack_into("<i", state_bytes, 8, 625 - final_cursor)
++    struct.pack_into("<Q", state_bytes, 16, final_cursor)
++    generator.set_state(torch.frombuffer(state_bytes, dtype=torch.uint8).clone())
++    return output.reshape(shape)
+diff --git a/python/infinilm/multimodal/ninetoothed_trace.py b/python/infinilm/multimodal/ninetoothed_trace.py
+new file mode 100644
+index 0000000..82ab9cb
+--- /dev/null
++++ b/python/infinilm/multimodal/ninetoothed_trace.py
+@@ -0,0 +1,75 @@
++"""Optional host diagnostics for NineToothed compilation and launches."""
++import functools
++import json
++import os
++from pathlib import Path
++import resource
++import sys
++import time
++
++import torch
++
++
++def install_kernel_trace(directory):
++    from . import ninetoothed_vae_encoder as encoder
++
++    directory = Path(directory)
++    original = encoder._kernel
++    seen = set()
++    constructed = set()
++
++    def record(item):
++        item['max_rss_kib'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
++        item['time'] = time.time()
++        temporary = directory / 'last-kernel.json.tmp'
++        temporary.write_text(json.dumps(item))
++        os.replace(temporary, directory / 'last-kernel.json')
++
++    def traced(premake, *args, **kwargs):
++        kernel = {'module': premake.__module__, 'name': premake.__name__,
++                  'arguments': repr(args), 'keywords': repr(kwargs)}
++        key = json.dumps(kernel, sort_keys=True)
++        if key not in constructed:
++            constructed.add(key)
++            record({'phase': 'construct', 'kernel': kernel})
++        function = original(premake, *args, **kwargs)
++
++        @functools.wraps(function)
++        def launch(*arguments):
++            tensors = [{'shape': list(value.shape), 'stride': list(value.stride()),
++                        'dtype': str(value.dtype), 'device': str(value.device)}
++                       if isinstance(value, torch.Tensor) else repr(value)
++                       for value in arguments]
++            signature = json.dumps([kernel, tensors], sort_keys=True)
++            item = {'phase': 'launch', 'kernel': kernel, 'tensors': tensors}
++            first = signature not in seen
++            if first:
++                seen.add(signature)
++                record(item)
++                print('NINETOOTHED_KERNEL_TRACE', signature, flush=True)
++            result = function(*arguments)
++            if first:
++                record({**item, 'phase': 'returned'})
++            return result
++
++        return launch
++
++    for name, module in tuple(sys.modules.items()):
++        if name.startswith(__package__ + '.ninetoothed_') and getattr(module, '_kernel', None) is original:
++            module._kernel = traced
++
++
++def capture_audio_diagnostic_input(audio_class, directory):
++    original = audio_class.decode
++
++    @functools.wraps(original)
++    def decode(self, latent, *args, **kwargs):
++        # This diagnostic tensor is never consumed by the submitted generator.
++        # The strict decoder mode also surrounds this wrapper. Disable dispatch
++        # only for the unchanged-dtype host copy and serialization; the original
++        # model call below must retain every active numerical dispatch mode.
++        with torch._C._DisableTorchDispatch():
++            torch.save(latent.detach().cpu(), Path(directory) / 'diagnostic-audio-input.pt')
++        return original(self, latent, *args, **kwargs)
++
++    audio_class.decode = decode
+diff --git a/python/infinilm/multimodal/ninetoothed_vae.py b/python/infinilm/multimodal/ninetoothed_vae.py
+new file mode 100644
+index 0000000..9d2cd46
+--- /dev/null
++++ b/python/infinilm/multimodal/ninetoothed_vae.py
+@@ -0,0 +1,62 @@
++"""Install strict NineToothed VAE execution without changing evaluator code."""
++from collections import Counter
++import functools
++import json
++from pathlib import Path
++import time
++
++from .ninetoothed_vae_encoder import NineToothedVAEEncoderMode
++from .ninetoothed_vae_video import NineToothedVAEVideoMode
++from .ninetoothed_vae_audio import NineToothedVAEAudioMode
++
++
++def install_ninetoothed_vae(video_class, audio_class, evidence_path):
++    """Wrap neural methods; fail on unsupported compute and retain audit data.
++
++    Caller controls dtype/device placement and performs normal model loading.
++    Media output and scheduler numerical coverage are audited separately.
++    """
++    evidence = Path(evidence_path)
++    evidence.parent.mkdir(parents=True, exist_ok=True)
++    counters = Counter()
++    stages = []
++    methods = []
++    for model_class, name, mode_class in (
++        (video_class, "encode", NineToothedVAEEncoderMode),
++        (video_class, "decode", NineToothedVAEVideoMode),
++        (audio_class, "decode", NineToothedVAEAudioMode),
++    ):
++        original = getattr(model_class, name)
++        label = model_class.__name__ + "." + name
++
++        def wrap(original, label, mode_class):
++            @functools.wraps(original)
++            def execute(*args, **kwargs):
++                mode = mode_class()
++                started = time.perf_counter()
++                item = {"stage": label, "status": "started"}
++                try:
++                    with mode:
++                        result = original(*args, **kwargs)
++                    item["status"] = "completed"
++                    return result
++                except BaseException as error:
++                    item["status"] = "failed"
++                    item["error"] = repr(error)
++                    raise
++                finally:
++                    item["host_seconds"] = time.perf_counter() - started
++                    item["op_counts"] = dict(mode.operations)
++                    counters.update(mode.operations)
++                    stages.append(item)
++                    evidence.write_text(json.dumps({
++                        "scope": "neural VAE methods; scheduler and other boundaries audited separately",
++                        "fallback": "unsupported numerical operations raise",
++                        "stages": stages, "op_counts": dict(counters),
++                    }, indent=2))
++                    print("NINETOOTHED_VAE_STAGE", json.dumps(item), flush=True)
++            return execute
++
++        setattr(model_class, name, wrap(original, label, mode_class))
++        methods.append((model_class, name, original))
++    return methods
+diff --git a/python/infinilm/multimodal/ninetoothed_vae_audio.py b/python/infinilm/multimodal/ninetoothed_vae_audio.py
+new file mode 100644
+index 0000000..40f13c9
+--- /dev/null
++++ b/python/infinilm/multimodal/ninetoothed_vae_audio.py
+@@ -0,0 +1,125 @@
++"""Experimental strict NineToothed dispatch for the H3 audio VAE decoder."""
++import math
++
++import torch
++
++from infiniop.ops.conv1d.ninetoothed.conv1d import premake as conv1d_premake
++from infiniop.ops.conv1d.ninetoothed.depthwise import premake as depthwise_premake
++from infiniop.ops.vae_support.ninetoothed.support import premake_weight_norm
++from .ninetoothed_vae_encoder import (
++    NineToothedVAEEncoderMode,
++    _DTYPES,
++    _kernel,
++    pointwise,
++)
++
++
++class NineToothedVAEAudioMode(NineToothedVAEEncoderMode):
++    def __torch_dispatch__(self, func, types, args=(), kwargs=None):
++        kwargs = kwargs or {}
++        name = str(func)
++        if name == "aten._weight_norm.default":
++            self.operations[name] += 1
++            weight, gain = args[:2]
++            if gain.dtype != weight.dtype:
++                raise NotImplementedError("Weight-norm gain and weight must have matching dtypes")
++            dim = args[2] if len(args) > 2 else kwargs.get("dim", 0)
++            output = torch.empty_like(weight)
++            _kernel(premake_weight_norm, weight.ndim, dim=dim,
++                    dtype=_DTYPES[weight.dtype])(weight, gain, output)
++            return output
++        if name not in ("aten.conv1d.default", "aten.conv_transpose1d.default"):
++            return super().__torch_dispatch__(func, types, args, kwargs)
++        self.operations[name] += 1
++        transpose = name == "aten.conv_transpose1d.default"
++        input, weight = args[:2]
++        bias = args[2] if len(args) > 2 else kwargs.get("bias")
++        stride = args[3] if len(args) > 3 else kwargs.get("stride", 1)
++        padding = args[4] if len(args) > 4 else kwargs.get("padding", 0)
++        if transpose:
++            output_padding = args[5] if len(args) > 5 else kwargs.get("output_padding", 0)
++            groups = args[6] if len(args) > 6 else kwargs.get("groups", 1)
++            dilation = args[7] if len(args) > 7 else kwargs.get("dilation", 1)
++        else:
++            dilation = args[5] if len(args) > 5 else kwargs.get("dilation", 1)
++            groups = args[6] if len(args) > 6 else kwargs.get("groups", 1)
++            output_padding = 0
++
++        def scalar(value):
++            return value if isinstance(value, int) else value[0]
++        stride, padding, dilation, output_padding = map(
++            scalar, (stride, padding, dilation, output_padding))
++        dtype = (torch.get_autocast_dtype("cuda")
++                 if torch.is_autocast_enabled("cuda") else input.dtype)
++        if input.dtype != dtype:
++            input = pointwise(input, 0, dtype=dtype)
++        if weight.dtype != dtype:
++            weight = pointwise(weight, 0, dtype=dtype)
++        if bias is not None and bias.dtype != dtype:
++            bias = pointwise(bias, 0, dtype=dtype)
++        batch, channels, length = input.shape
++        kernel_size = weight.shape[-1]
++        output_channels = weight.shape[1] * groups if transpose else weight.shape[0]
++        output_length = ((length - 1) * stride - 2 * padding + dilation * (kernel_size - 1)
++                         + output_padding + 1 if transpose else
++                         (length + 2 * padding - dilation * (kernel_size - 1) - 1) // stride + 1)
++        output = torch.empty((batch, output_channels, output_length),
++                             device=input.device, dtype=dtype)
++        if bias is None:
++            bias = torch.zeros(output_channels, device=input.device, dtype=dtype)
++        if groups == channels == output_channels and weight.shape[1] == 1:
++            if not transpose:
++                _kernel(depthwise_premake, kernel_size, _DTYPES[dtype],
++                        stride=stride, pad_left=padding, pad_right=padding,
++                        dilation=dilation, round_before_bias=True)(input, weight, bias, output)
++            else:
++                divisor = math.gcd(stride, dilation)
++                for phase in range(stride):
++                    target = output[..., phase::stride]
++                    if target.numel() == 0:
++                        continue
++                    indices = [k for k in range(kernel_size)
++                               if (phase + padding - k * dilation) % stride == 0]
++                    if not indices:
++                        target.copy_(bias[None, :, None].expand(target.shape))
++                        continue
++                    last = indices[-1]
++                    left = -(phase + padding - last * dilation) // stride
++                    step = dilation // divisor
++                    right = target.shape[-1] - length - left + step * (len(indices) - 1)
++                    _kernel(depthwise_premake, len(indices), _DTYPES[dtype],
++                            stride=1, pad_left=left, pad_right=right, dilation=step,
++                            transpose=True, kernel_last=last,
++                            kernel_period=stride // divisor, round_before_bias=True)(input, weight, bias, target)
++            return output
++        for group in range(groups):
++            x = input[:, group * (channels // groups):(group + 1) * (channels // groups)]
++            y = output[:, group * (output_channels // groups):(group + 1) * (output_channels // groups)]
++            b = bias[group * (output_channels // groups):(group + 1) * (output_channels // groups)]
++            if not transpose:
++                w = weight[group * (output_channels // groups):(group + 1) * (output_channels // groups)]
++                _kernel(conv1d_premake, _DTYPES[dtype], stride=stride,
++                        pad_left=padding, pad_right=padding, dilation=dilation,
++                        round_before_bias=True)(x, w, b, y, 2)
++                continue
++            w = weight[group * (channels // groups):(group + 1) * (channels // groups)]
++            divisor = math.gcd(stride, dilation)
++            period = stride // divisor
++            for phase in range(stride):
++                indices = [k for k in range(kernel_size)
++                           if (phase + padding - k * dilation) % stride == 0]
++                target = y[..., phase::stride]
++                if target.numel() == 0:
++                    continue
++                if not indices:
++                    target.copy_(b[None, :, None].expand(target.shape))
++                    continue
++                last = indices[-1]
++                pad_left = -(phase + padding - last * dilation) // stride
++                step = dilation // divisor
++                pad_right = target.shape[-1] - length - pad_left + step * (len(indices) - 1)
++                _kernel(conv1d_premake, _DTYPES[dtype], stride=1,
++                        pad_left=pad_left, pad_right=pad_right, dilation=step,
++                        transpose=True, kernel_last=last, kernel_period=period,
++                        round_before_bias=True)(x, w, b, target, 2)
++        return output
+diff --git a/python/infinilm/multimodal/ninetoothed_vae_encoder.py b/python/infinilm/multimodal/ninetoothed_vae_encoder.py
+new file mode 100644
+index 0000000..3dc76b3
+--- /dev/null
++++ b/python/infinilm/multimodal/ninetoothed_vae_encoder.py
+@@ -0,0 +1,190 @@
++"""Experimental VAE encoder dispatch using NineToothed numerical kernels.
++
++Opt-in component adapter. It fails on unsupported operations, so an incomplete
++port cannot silently execute a Torch model kernel. Storage/view/constant
++construction remains in Torch; numerical operations are handled explicitly.
++"""
++from collections import Counter
++import functools
++import os
++
++import ninetoothed as nt
++import torch
++from torch.utils._python_dispatch import TorchDispatchMode
++
++from infiniop.ops.conv3d.ninetoothed.conv3d import premake as conv3d_premake
++from infiniop.ops.group_norm.ninetoothed.group_norm import premake as group_norm_premake
++from infiniop.ops.vae_support.ninetoothed.support import (
++    premake_padding,
++    premake_pointwise,
++)
++
++_DTYPES = {torch.float32: nt.float32, torch.bfloat16: nt.bfloat16,
++           torch.float16: nt.float16}
++
++
++@functools.cache
++def _prepare_compiler():
++    if os.getenv("NINETOOTHED_HYGON_LLVM_COMPAT") == "1":
++        from ninetoothed._compile_triton import install_hygon_llvm_compatibility
++        install_hygon_llvm_compatibility()
++
++
++@functools.cache
++def _kernel(premake, *args, **kwargs):
++    _prepare_compiler()
++    return nt.make(*premake(*args, **kwargs), num_warps=4, num_stages=1,
++                   max_num_configs=1)
++
++
++def pointwise(input, operation, other=None, *, dtype=None,
++              lower=-float("inf"), upper=float("inf")):
++    dtype = dtype or (torch.result_type(input, other) if other is not None else input.dtype)
++    if other is None:
++        other = input
++    elif not isinstance(other, torch.Tensor):
++        # Scalar arithmetic uses FP32 opmath before the result is stored.
++        other = torch.full((), other, device=input.device, dtype=torch.float32)
++    shape = torch.broadcast_shapes(input.shape, other.shape)
++    scalar_result = len(shape) == 0
++    if scalar_result:
++        # The elementwise arrangement needs a launch dimension. Represent one
++        # scalar as a single storage element, then restore its scalar view.
++        shape = (1,)
++        input, other = input.reshape(shape), other.reshape(shape)
++    input, other = input.expand(shape), other.expand(shape)
++    result = torch.empty(shape, dtype=dtype, device=input.device)
++    _kernel(premake_pointwise, len(shape), operation,
++            input_dtype=_DTYPES[input.dtype], other_dtype=_DTYPES[other.dtype],
++            output_dtype=_DTYPES[dtype], lower=lower, upper=upper)(
++                input, other, result, operation, lower, upper)
++    return result.reshape(()) if scalar_result else result
++
++
++class NineToothedVAEEncoderMode(TorchDispatchMode):
++    """Use only with an encoder until component/model validation has passed."""
++
++    _STORAGE = {
++        "aten.alias.default", "aten.detach.default", "aten.slice.Tensor",
++        "aten.select.int", "aten.permute.default", "aten.view.default",
++        "aten.reshape.default", "aten._unsafe_view.default", "aten.expand.default",
++        "aten.unsqueeze.default", "aten.squeeze.dim", "aten.squeeze.default",
++        "aten.split.Tensor", "aten.split_with_sizes.default", "aten.chunk.default",
++        "aten.cat.default", "aten.stack.default", "aten.contiguous.default",
++        "aten.clone.default", "aten.empty_like.default", "aten.empty.memory_format",
++        "aten.empty_strided.default", "aten.zeros_like.default", "aten.zeros.default",
++        "aten.ones.default", "aten.ones_like.default", "aten.full.default",
++        "aten.full_like.default", "aten.new_empty.default", "aten.new_zeros.default",
++        "aten.arange.default", "aten.arange.start", "aten.arange.start_step",
++        "aten.lift_fresh.default", "aten.repeat.default",
++        "aten.unbind.int", "aten.flatten.using_ints", "aten.unflatten.int",
++        "aten.tile.default", "aten.meshgrid.indexing",
++    }
++
++    def __init__(self):
++        super().__init__()
++        self.operations = Counter()
++
++    def __torch_dispatch__(self, func, types, args=(), kwargs=None):
++        kwargs = kwargs or {}
++        name = str(func)
++        self.operations[name] += 1
++        if name == "aten.copy_.default":
++            destination, source = args[:2]
++            if destination.dtype == source.dtype:
++                return func(*args, **kwargs)
++            source = source.expand(destination.shape)
++            _kernel(premake_pointwise, destination.ndim, 0,
++                    input_dtype=_DTYPES[source.dtype],
++                    other_dtype=_DTYPES[source.dtype],
++                    output_dtype=_DTYPES[destination.dtype])(
++                        source, source, destination, 0, -float("inf"), float("inf"))
++            return destination
++        if name in self._STORAGE:
++            return func(*args, **kwargs)
++        if name == "aten.to.dtype":
++            x, dtype = args[:2]
++            return x if x.dtype == dtype else pointwise(x, 0, dtype=dtype)
++        if name == "aten._to_copy.default":
++            x = args[0]
++            dtype = kwargs.get("dtype", x.dtype)
++            if kwargs.get("device", x.device) != x.device:
++                raise NotImplementedError("Numerical mode requires preplaced VAE storage")
++            return pointwise(x, 0, dtype=dtype)
++        binary = {"aten.add.Tensor": 1, "aten.mul.Tensor": 2,
++                  "aten.sub.Tensor": 3, "aten.div.Tensor": 4,
++                  "aten.rsub.Scalar": 5, "aten.add.Scalar": 1,
++                  "aten.mul.Scalar": 2, "aten.sub.Scalar": 3,
++                  "aten.div.Scalar": 4}
++        if name in binary:
++            if kwargs.get("alpha", 1) != 1:
++                raise NotImplementedError("Non-unit add/sub alpha")
++            return pointwise(args[0], binary[name], args[1])
++        unary = {"aten.exp.default": 6, "aten.sin.default": 7,
++                 "aten.cos.default": 8, "aten.neg.default": 9,
++                 "aten.silu.default": 10, "aten.square.default": 11,
++                 "aten.reciprocal.default": 12}
++        if name in unary:
++            return pointwise(args[0], unary[name])
++        if name == "aten.pow.Tensor_Scalar" and args[1] == 2:
++            return pointwise(args[0], 11)
++        if name == "aten.clamp.default":
++            lower = args[1] if len(args) > 1 else kwargs.get("min")
++            upper = args[2] if len(args) > 2 else kwargs.get("max")
++            return pointwise(args[0], 13, lower=-float("inf") if lower is None else lower,
++                             upper=float("inf") if upper is None else upper)
++        if name == "aten.pad.default":
++            x, pad = args[:2]
++            mode = args[2] if len(args) > 2 else kwargs.get("mode", "constant")
++            value = args[3] if len(args) > 3 else kwargs.get("value")
++            if value not in (None, 0):
++                raise NotImplementedError("Only zero constant padding is supported")
++            full = [(0, 0)] * x.ndim
++            for index in range(len(pad) // 2):
++                full[-1-index] = tuple(pad[2*index:2*index+2])
++            full = tuple(full)
++            output = torch.empty(tuple(n + sum(p) for n, p in zip(x.shape, full)),
++                                 device=x.device, dtype=x.dtype)
++            _kernel(premake_padding, x.ndim, full, mode, _DTYPES[x.dtype])(x, output)
++            return output
++        if name == "aten.group_norm.default":
++            x, groups, weight, bias = args[:4]
++            eps = args[4] if len(args) > 4 else kwargs.get("eps", 1e-5)
++            batch, channels = x.shape[:2]
++            grouped = x.contiguous().view(batch, groups, -1)
++            output = torch.empty_like(grouped)
++            if weight is None:
++                weight = torch.ones(channels, device=x.device, dtype=x.dtype)
++            if bias is None:
++                bias = torch.zeros(channels, device=x.device, dtype=x.dtype)
++            if weight.dtype != x.dtype or bias.dtype != x.dtype:
++                raise NotImplementedError("GroupNorm affine tensors must match the input dtype")
++            mean = torch.empty((batch, groups, 1), device=x.device, dtype=torch.float32)
++            rstd = torch.empty_like(mean)
++            _kernel(group_norm_premake, _DTYPES[x.dtype], eps=eps)(
++                grouped, weight.view(groups, -1), bias.view(groups, -1), output,
++                mean, rstd, eps)
++            return output.view(x.shape)
++        if name == "aten.conv3d.default":
++            x, weight = args[:2]
++            bias = args[2] if len(args) > 2 else kwargs.get("bias")
++            stride = args[3] if len(args) > 3 else kwargs.get("stride", (1, 1, 1))
++            padding = args[4] if len(args) > 4 else kwargs.get("padding", (0, 0, 0))
++            dilation = args[5] if len(args) > 5 else kwargs.get("dilation", (1, 1, 1))
++            groups = args[6] if len(args) > 6 else kwargs.get("groups", 1)
++            def triple(value):
++                return (value,) * 3 if isinstance(value, int) else tuple(value)
++            stride, padding, dilation = map(triple, (stride, padding, dilation))
++            if groups != 1 or weight.dtype != x.dtype:
++                raise NotImplementedError("Dense same-dtype Conv3D required")
++            spatial = tuple((n + 2*p - d*(k-1) - 1) // s + 1
++                            for n, p, d, k, s in zip(x.shape[2:], padding,
++                                                     dilation, weight.shape[2:], stride))
++            output = torch.empty((x.shape[0], weight.shape[0], *spatial),
++                                 device=x.device, dtype=x.dtype)
++            if bias is None:
++                bias = torch.zeros(weight.shape[0], device=x.device, dtype=x.dtype)
++            _kernel(conv3d_premake, stride=stride, padding=padding, dilation=dilation,
++                    dtype=_DTYPES[x.dtype], round_before_bias=True)(x, weight, bias, output, 2)
++            return output
++        raise NotImplementedError(f"VAE encoder operation is not ported: {name}")
+diff --git a/python/infinilm/multimodal/ninetoothed_vae_video.py b/python/infinilm/multimodal/ninetoothed_vae_video.py
+new file mode 100644
+index 0000000..bf991ef
+--- /dev/null
++++ b/python/infinilm/multimodal/ninetoothed_vae_video.py
+@@ -0,0 +1,95 @@
++"""Experimental strict NineToothed execution for the H3 video VAE decoder."""
++import math
++
++import ninetoothed as nt
++import torch
++
++from infiniop.ops.flash_attention.ninetoothed.flash_attention_scaled import premake as attention_premake
++from infiniop.ops.matmul.ninetoothed.matmul_accumulate_f32 import premake as matrix_premake
++from infiniop.ops.vae_support.ninetoothed.normalization import premake as norm_premake
++from .ninetoothed_vae_encoder import NineToothedVAEEncoderMode, _DTYPES, _kernel, pointwise
++
++
++class NineToothedVAEVideoMode(NineToothedVAEEncoderMode):
++    def __torch_dispatch__(self, func, types, args=(), kwargs=None):
++        kwargs = kwargs or {}
++        name = str(func)
++        if name == "aten.dropout.default":
++            self.operations[name] += 1
++            probability = args[1] if len(args) > 1 else kwargs.get("p", 0.5)
++            training = args[2] if len(args) > 2 else kwargs.get("train", True)
++            if training and probability:
++                raise NotImplementedError("Dropout must be inactive during VAE inference")
++            return args[0]
++        if name in ("aten.rms_norm.default", "aten.layer_norm.default"):
++            self.operations[name] += 1
++            x, shape = args[:2]
++            width = math.prod(shape)
++            centered = name == "aten.layer_norm.default"
++            weight = args[2] if len(args) > 2 else kwargs.get("weight")
++            if centered:
++                bias = args[3] if len(args) > 3 else kwargs.get("bias")
++                eps = args[4] if len(args) > 4 else kwargs.get("eps", 1e-5)
++            else:
++                bias = None
++                eps = args[3] if len(args) > 3 else kwargs.get("eps")
++                eps = torch.finfo(x.dtype).eps if eps is None else eps
++            if weight is None:
++                weight = torch.ones(width, device=x.device, dtype=x.dtype)
++            if bias is None:
++                bias = torch.zeros(width, device=x.device, dtype=x.dtype)
++            output = torch.empty_like(x, memory_format=torch.contiguous_format)
++            _kernel(norm_premake, width, centered, _DTYPES[x.dtype],
++                    weight_dtype=_DTYPES[weight.dtype], bias_dtype=_DTYPES[bias.dtype],
++                    output_dtype=_DTYPES[x.dtype])(
++                        x.contiguous().view(-1, width), weight.reshape(width), bias.reshape(width),
++                        output.view(-1, width), eps, int(centered))
++            return output
++        if name == "aten.linear.default":
++            self.operations[name] += 1
++            x, weight = args[:2]
++            bias = args[2] if len(args) > 2 else kwargs.get("bias")
++            dtype = (torch.get_autocast_dtype("cuda")
++                     if torch.is_autocast_enabled("cuda") else x.dtype)
++            if dtype != torch.bfloat16:
++                raise NotImplementedError("This linear candidate currently requires BF16 compute")
++            if x.dtype != dtype:
++                x = pointwise(x, 0, dtype=dtype)
++            if weight.dtype != dtype:
++                weight = pointwise(weight, 0, dtype=dtype)
++            if bias is not None and bias.dtype != dtype:
++                bias = pointwise(bias, 0, dtype=dtype)
++            flat = x.contiguous().view(-1, weight.shape[1])
++            accumulator = torch.empty((flat.shape[0], weight.shape[0]),
++                                      device=x.device, dtype=torch.float32)
++            _kernel(matrix_premake)(flat, weight.t(), accumulator, 2)
++            if bias is not None:
++                accumulator = pointwise(accumulator, 1, bias)
++            output = pointwise(accumulator, 0, dtype=dtype)
++            return output.view(*x.shape[:-1], weight.shape[0])
++        if name == "aten.scaled_dot_product_attention.default":
++            self.operations[name] += 1
++            query, key, value = args[:3]
++            mask = args[3] if len(args) > 3 else kwargs.get("attn_mask")
++            probability = args[4] if len(args) > 4 else kwargs.get("dropout_p", 0)
++            causal = args[5] if len(args) > 5 else kwargs.get("is_causal", False)
++            scale = kwargs.get("scale")
++            scale = query.shape[-1] ** -0.5 if scale is None else scale
++            if (mask is not None or probability or query.dtype != torch.bfloat16 or
++                key.dtype != query.dtype or value.dtype != query.dtype or
++                query.ndim != 4 or key.ndim != 4 or value.ndim != 4 or
++                query.shape[0] != key.shape[0] or key.shape[0] != value.shape[0] or
++                key.shape[1] != value.shape[1] or query.shape[1] % key.shape[1] or
++                query.shape[-1] != key.shape[-1] or query.shape[-1] != value.shape[-1]):
++                raise NotImplementedError("Only mask-free BF16 inference attention is supported")
++            output = torch.empty_like(query)
++            lengths = torch.full((query.shape[0],), key.shape[-2],
++                                  device=query.device, dtype=torch.int32)
++            unused_mask = torch.empty((1, 1, 1, 1), device=query.device, dtype=query.dtype)
++            _kernel(attention_premake, with_kv_cache=0, emb_dim=query.shape[-1],
++                    is_causal=int(causal), with_attn_mask=0, causal_variant=1,
++                    dtype=nt.bfloat16, block_size_m=32, block_size_n=32)(
++                        query, key, value, lengths, unused_mask, int(causal), scale,
++                        output, 0, 1)
++            return output
++        return super().__torch_dispatch__(func, types, args, kwargs)

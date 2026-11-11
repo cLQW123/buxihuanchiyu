@@ -1,0 +1,18 @@
+{
+  "InfiniCore": {
+    "repository": "https://github.com/InfiniTensor/InfiniCore.git",
+    "base_commit": "f32e2fbb2a9b2ca912b5711f4f3836c403196a74"
+  },
+  "InfiniLM": {
+    "repository": "https://github.com/InfiniTensor/InfiniLM.git",
+    "base_commit": "65deb91f840ebaef752d028fad2f3217ce0950f4"
+  },
+  "ninetoothed": {
+    "repository": "https://github.com/InfiniTensor/ninetoothed.git",
+    "base_commit": "daf55c76c8e8b50904b0b84678d9bca93a1c8948"
+  },
+  "ntops": {
+    "repository": "https://github.com/InfiniTensor/ntops.git",
+    "base_commit": "82cba6cf2200919b5d12c86adbea60cbfb516040"
+  }
+}

@@ -1,0 +1,1715 @@
+diff --git a/scripts/build_ntops.py b/scripts/build_ntops.py
+index 60124961..11727c1e 100644
+--- a/scripts/build_ntops.py
++++ b/scripts/build_ntops.py
+@@ -1,34 +1,61 @@
+ import concurrent.futures
+ import importlib
++import os
+ import pathlib
++import sys
+ 
+-from infiniop.ninetoothed.build import BUILD_DIRECTORY_PATH
+-
+-CURRENT_FILE_PATH = pathlib.Path(__file__)
++CURRENT_FILE_PATH = pathlib.Path(__file__).resolve()
++PROJECTS_DIR_PATH = CURRENT_FILE_PATH.parent.parent.parent
+ 
+ SRC_DIR_PATH = CURRENT_FILE_PATH.parent.parent / "src"
++NTOPS_SRC_DIR_PATH = PROJECTS_DIR_PATH / "ntops" / "src"
++NINETOOTHED_SRC_DIR_PATH = PROJECTS_DIR_PATH / "ninetoothed" / "src"
+ 
++for source_dir in (NTOPS_SRC_DIR_PATH, SRC_DIR_PATH, NINETOOTHED_SRC_DIR_PATH):
++    if source_dir.is_dir() and str(source_dir) not in sys.path:
++        sys.path.insert(0, str(source_dir))
+ 
+-def _find_and_build_ops():
+-    ops_path = SRC_DIR_PATH / "infiniop" / "ops"
+-
+-    with concurrent.futures.ProcessPoolExecutor() as executor:
+-        futures = []
+-
+-        for op_dir in ops_path.iterdir():
+-            ninetoothed_path = op_dir / "ninetoothed"
+-
+-            if not ninetoothed_path.is_dir():
+-                continue
++BUILD_DIRECTORY_PATH = importlib.import_module(
++    "infiniop.ninetoothed.build"
++).BUILD_DIRECTORY_PATH
+ 
+-            build_file = ninetoothed_path / "build.py"
+-            if not build_file.exists():
+-                continue
+ 
+-            futures.append(executor.submit(_build, ninetoothed_path))
++def _find_and_build_ops():
++    ops_path = SRC_DIR_PATH / "infiniop" / "ops"
++    requested_ops = {
++        name.strip()
++        for name in os.getenv("INFINICORE_NINETOOTHED_OPS", "").split(",")
++        if name.strip()
++    }
++    selected_ops = sorted(
++        op_dir.name
++        for op_dir in ops_path.iterdir()
++        if (op_dir / "ninetoothed" / "build.py").is_file()
++        and (not requested_ops or op_dir.name in requested_ops)
++    )
++    missing_ops = requested_ops - set(selected_ops)
++    if missing_ops:
++        raise ValueError(f"Unknown or non-NineToothed ops: {sorted(missing_ops)}")
++
++    max_workers = int(os.getenv("INFINICORE_NINETOOTHED_WORKERS", "4"))
++    if max_workers < 1:
++        raise ValueError("INFINICORE_NINETOOTHED_WORKERS must be positive")
++
++    print(f"NineToothed ops: {', '.join(selected_ops)}", flush=True)
++    print(f"NineToothed build workers: {max_workers}", flush=True)
++    for op_name in selected_ops:
++        print(f"Starting NineToothed op: {op_name}", flush=True)
++
++    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
++        futures = {
++            executor.submit(_build, ops_path / op_name / "ninetoothed"): op_name
++            for op_name in selected_ops
++        }
+ 
+         for future in concurrent.futures.as_completed(futures):
++            op_name = futures[future]
+             future.result()
++            print(f"Built NineToothed op: {op_name}", flush=True)
+ 
+ 
+ def _build(ninetoothed_path):
+diff --git a/src/infinicore/ops/multi_head_attention/hygon/mha_flashattn_hygon.cc b/src/infinicore/ops/multi_head_attention/hygon/mha_flashattn_hygon.cc
+index 7a2aaf1d..5609fa13 100644
+--- a/src/infinicore/ops/multi_head_attention/hygon/mha_flashattn_hygon.cc
++++ b/src/infinicore/ops/multi_head_attention/hygon/mha_flashattn_hygon.cc
+@@ -1,4 +1,4 @@
+-#if defined(ENABLE_HYGON_API) && defined(ENABLE_FLASH_ATTN)
++#if defined(ENABLE_HYGON_API) && defined(ENABLE_FLASH_ATTN) && !defined(ENABLE_NINETOOTHED)
+ #include "infinicore/ops/mha.hpp"
+ 
+ #include "../../../adaptor/flash_attn/hygon/flash_attn_hygon.hpp"
+diff --git a/src/infinicore/ops/multi_head_attention/hygon/mha_ninetoothed_hygon.cc b/src/infinicore/ops/multi_head_attention/hygon/mha_ninetoothed_hygon.cc
+new file mode 100644
+index 00000000..3e627352
+--- /dev/null
++++ b/src/infinicore/ops/multi_head_attention/hygon/mha_ninetoothed_hygon.cc
+@@ -0,0 +1,66 @@
++#if defined(ENABLE_HYGON_API) && defined(ENABLE_NINETOOTHED)
++#include "infinicore/ops/mha.hpp"
++#include "infinicore/ops/flash_attention.hpp"
++
++#include <algorithm>
++#include <cstdint>
++#include <limits>
++#include <stdexcept>
++
++namespace infinicore::op::mha_impl::ninetoothed_hygon {
++
++struct PlannedMeta {
++    graph::GraphTensor out, q, k, v, lengths;
++    float scale;
++    bool causal;
++};
++
++void *plan(Tensor out, const Tensor &q, const Tensor &k, const Tensor &v,
++           std::optional<Tensor> alibi, float scale, bool causal) {
++    if (alibi.has_value()) {
++        throw std::invalid_argument("NineToothed Hygon MHA does not support ALiBi");
++    }
++    if (q->ndim() != 4 || k->ndim() != 4 || v->ndim() != 4) {
++        throw std::invalid_argument("NineToothed Hygon MHA requires BSHD tensors");
++    }
++    if (q->dtype() != DataType::BF16 || k->dtype() != q->dtype() || v->dtype() != q->dtype()) {
++        throw std::invalid_argument("NineToothed Hygon MHA requires matching BF16 tensors");
++    }
++    if (q->size(0) != k->size(0) || k->shape() != v->shape() ||
++        q->size(3) != k->size(3) || q->size(2) % k->size(2) != 0 ||
++        out->shape() != q->shape() || k->size(1) > std::numeric_limits<int32_t>::max()) {
++        throw std::invalid_argument("Inconsistent NineToothed Hygon MHA tensor shapes");
++    }
++    auto host_lengths = Tensor::empty({q->size(0)}, DataType::I32, Device::cpu());
++    std::fill_n(reinterpret_cast<int32_t *>(host_lengths->data()), q->size(0),
++                static_cast<int32_t>(k->size(1)));
++    auto lengths = host_lengths->to(q->device());
++    context::syncStream();
++    return new PlannedMeta{graph::GraphTensor(out), graph::GraphTensor(q),
++                           graph::GraphTensor(k), graph::GraphTensor(v),
++                           graph::GraphTensor(lengths), scale, causal};
++}
++
++void run(void *metadata) {
++    auto *p = reinterpret_cast<PlannedMeta *>(metadata);
++    flash_attention_(p->out->permute({0, 2, 1, 3}),
++                     p->q->permute({0, 2, 1, 3}),
++                     p->k->permute({0, 2, 1, 3}),
++                     p->v->permute({0, 2, 1, 3}),
++                     Tensor(p->lengths), p->scale, p->causal);
++}
++
++void cleanup(void **metadata) {
++    delete reinterpret_cast<PlannedMeta *>(*metadata);
++    *metadata = nullptr;
++}
++
++static bool registered = [] {
++    MultiheadAttention::plan_dispatcher().registerDevice(Device::Type::HYGON, &plan);
++    MultiheadAttention::run_dispatcher().registerDevice(Device::Type::HYGON, &run);
++    MultiheadAttention::cleanup_dispatcher().registerDevice(Device::Type::HYGON, &cleanup);
++    return true;
++}();
++
++} // namespace infinicore::op::mha_impl::ninetoothed_hygon
++#endif
+diff --git a/src/infiniop/ninetoothed/build.py b/src/infiniop/ninetoothed/build.py
+index 153e6b9f..7c4863e7 100644
+--- a/src/infiniop/ninetoothed/build.py
++++ b/src/infiniop/ninetoothed/build.py
+@@ -2,6 +2,7 @@ import concurrent.futures
+ import functools
+ import inspect
+ import itertools
++import os
+ import pathlib
+ 
+ import ninetoothed
+@@ -20,7 +21,9 @@ def build(premake, constexpr_param_grid, caller, op_name, output_dir):
+     combinations = []
+     launches = []
+ 
+-    with concurrent.futures.ProcessPoolExecutor() as executor:
++    workers = os.getenv("INFINICORE_NINETOOTHED_WORKERS")
++    max_workers = int(workers) if workers else None
++    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+         futures = []
+ 
+         for combination in tuple(
+@@ -99,16 +102,24 @@ def _make(premake, combination, caller, op_name, output_dir):
+ 
+     kernel_name = f"{op_name}_{_generate_suffix(combination.values())}"
+ 
+-    ninetoothed.make(
+-        arrangement,
+-        application,
+-        tensors,
+-        caller=caller,
+-        kernel_name=kernel_name,
+-        output_dir=output_dir,
+-    )
+-
+     header = output_dir / f"{kernel_name}.h"
++    binary = output_dir / f"{kernel_name}.so"
++    if header.is_file() and binary.is_file() and binary.stat().st_size > 0:
++        print(f"Reusing NineToothed kernel: {kernel_name}", flush=True)
++    else:
++        ninetoothed.make(
++            arrangement,
++            application,
++            tensors,
++            caller=caller,
++            kernel_name=kernel_name,
++            output_dir=output_dir,
++            num_warps=int(os.environ["INFINICORE_NINETOOTHED_NUM_WARPS"])
++            if "INFINICORE_NINETOOTHED_NUM_WARPS" in os.environ else None,
++            num_stages=int(os.environ["INFINICORE_NINETOOTHED_NUM_STAGES"])
++            if "INFINICORE_NINETOOTHED_NUM_STAGES" in os.environ else None,
++        )
++
+     param_names = ("stream",) + tuple(inspect.signature(application).parameters.keys())
+     launch = f"""    if ({_generate_condition(combination)})
+         return launch_{kernel_name}({", ".join(param_names)});"""
+diff --git a/src/infiniop/ops/conv1d/ninetoothed/conv1d.py b/src/infiniop/ops/conv1d/ninetoothed/conv1d.py
+new file mode 100644
+index 00000000..26b0d51f
+--- /dev/null
++++ b/src/infiniop/ops/conv1d/ninetoothed/conv1d.py
+@@ -0,0 +1,34 @@
++"""NineToothed Conv1D and phase-decomposed ConvTranspose1D candidate."""
++import copy,functools
++import ninetoothed as nt
++import ninetoothed.language as ntl
++from ntops.kernels import mm
++def arrangement(input,weight,bias,output,precision,*,stride,pad_left,pad_right,dilation,transpose,kernel_last,kernel_period,block_size_m,block_size_n,block_size_k):
++ if transpose:weight=weight[:,:,kernel_last::-kernel_period].permute((1,0,2))
++ matrix=functools.partial(mm.arrangement,block_size_m=block_size_m,block_size_n=block_size_n,block_size_k=block_size_k)
++ padded=input.pad(((0,0),(0,0),(pad_left,pad_right)))
++ columns=padded.tile((1,*weight.shape[1:]),strides=(-1,-1,stride),dilation=(1,1,dilation),floor_mode=True)
++ columns=columns.squeeze(1);columns.dtype=columns.dtype.squeeze(0)
++ columns=columns.ravel().flatten(end_dim=2).flatten(start_dim=1)
++ filters=weight.flatten(start_dim=1).permute((1,0))
++ result=output.permute((0,2,1)).flatten(end_dim=2)
++ affine=bias[None,:,None].expand((output.shape[0],-1,output.shape[2])).permute((0,2,1)).flatten(end_dim=2)
++ _,_,affine,_=matrix(copy.deepcopy(columns),copy.deepcopy(filters),affine,copy.deepcopy(precision))
++ columns,filters,result,precision=matrix(columns,filters,result,precision)
++ return columns,filters,affine,result,precision
++def application(input,weight,bias,output,precision):
++ accumulator=ntl.zeros(output.shape,dtype=ntl.float32)
++ for block in range(input.shape[0]):accumulator+=ntl.dot(input[block],weight[block])
++ output=accumulator+bias
++def premake(dtype,stride=1,pad_left=0,pad_right=0,dilation=1,transpose=False,kernel_last=0,kernel_period=1,block_size_m=16,block_size_n=16,block_size_k=32,round_before_bias=False):
++ if min(stride,dilation,kernel_period,block_size_m,block_size_n,block_size_k)<=0:raise ValueError('Positive convolution geometry required')
++ tensors=(nt.Tensor(3,dtype=dtype,other=0),nt.Tensor(3,dtype=dtype,other=0),nt.Tensor(1,dtype=dtype),nt.Tensor(3,dtype=dtype),nt.Tensor(0,constexpr=True,value=2))
++ config=dict(stride=stride,pad_left=pad_left,pad_right=pad_right,dilation=dilation,transpose=transpose,kernel_last=kernel_last,kernel_period=kernel_period,block_size_m=block_size_m,block_size_n=block_size_n,block_size_k=block_size_k)
++ selected = application_bias_bf16 if round_before_bias and dtype == nt.bfloat16 else application
++ return functools.partial(arrangement,**config),selected,tensors
++
++def application_bias_bf16(input,weight,bias,output,precision):
++ accumulator=ntl.zeros(output.shape,dtype=ntl.float32)
++ for block in range(input.shape[0]):accumulator+=ntl.dot(input[block],weight[block])
++ rounded=ntl.cast(accumulator,ntl.bfloat16)
++ output=ntl.cast(rounded,ntl.float32)+bias
+diff --git a/src/infiniop/ops/conv1d/ninetoothed/depthwise.py b/src/infiniop/ops/conv1d/ninetoothed/depthwise.py
+new file mode 100644
+index 00000000..2fc1efa2
+--- /dev/null
++++ b/src/infiniop/ops/conv1d/ninetoothed/depthwise.py
+@@ -0,0 +1,55 @@
++"""NineToothed depthwise Conv1D without one launch per channel."""
++import functools
++
++import ninetoothed as nt
++import ninetoothed.language as ntl
++
++
++def arrangement(input, weight, bias, output, *, kernel_size, stride, pad_left,
++                pad_right, dilation, transpose, kernel_last, kernel_period,
++                block_size):
++    if transpose:
++        weight = weight[:, :, kernel_last::-kernel_period]
++    windows = input.pad(((0, 0), (0, 0), (pad_left, pad_right)))
++    windows = windows.tile((1, 1, kernel_size), strides=(-1, -1, stride),
++                           dilation=(1, 1, dilation), floor_mode=True)
++    windows = windows.ravel().squeeze((3, 4))
++    windows = windows.tile((1, 1, block_size, kernel_size)).squeeze(3)
++    windows.dtype = windows.dtype.squeeze((0, 1))
++    filters = weight[:, 0, :][None, :, None, :].expand(
++        (input.shape[0], -1, output.shape[2], -1))
++    filters = filters.tile((1, 1, block_size, kernel_size)).squeeze(3)
++    filters.dtype = filters.dtype.squeeze((0, 1))
++    affine = bias[None, :, None].expand((output.shape[0], -1, output.shape[2]))
++    affine = affine.tile((1, 1, block_size))
++    affine.dtype = affine.dtype.squeeze((0, 1))
++    result = output.tile((1, 1, block_size))
++    result.dtype = result.dtype.squeeze((0, 1))
++    return windows, filters, affine, result
++
++
++def application(input, weight, bias, output):
++    products = ntl.cast(input, ntl.float32) * ntl.cast(weight, ntl.float32)
++    output = ntl.sum(products, 1) + ntl.cast(bias, ntl.float32)
++
++
++def application_bias_bf16(input, weight, bias, output):
++    products = ntl.cast(input, ntl.float32) * ntl.cast(weight, ntl.float32)
++    rounded = ntl.cast(ntl.sum(products, 1), ntl.bfloat16)
++    output = ntl.cast(rounded, ntl.float32) + ntl.cast(bias, ntl.float32)
++
++
++def premake(kernel_size, dtype, stride=1, pad_left=0, pad_right=0,
++            dilation=1, transpose=False, kernel_last=0, kernel_period=1,
++            block_size=64, round_before_bias=False):
++    if min(kernel_size, stride, dilation, kernel_period, block_size) <= 0:
++        raise ValueError("Depthwise convolution geometry must be positive")
++    tensors = (nt.Tensor(3, dtype=dtype, other=0),
++               nt.Tensor(3, dtype=dtype, other=0),
++               nt.Tensor(1, dtype=dtype, other=0), nt.Tensor(3, dtype=dtype))
++    config = dict(kernel_size=kernel_size, stride=stride, pad_left=pad_left,
++                  pad_right=pad_right, dilation=dilation, transpose=transpose,
++                  kernel_last=kernel_last, kernel_period=kernel_period,
++                  block_size=block_size)
++    selected = application_bias_bf16 if round_before_bias and dtype == nt.bfloat16 else application
++    return functools.partial(arrangement, **config), selected, tensors
+diff --git a/src/infiniop/ops/conv3d/ninetoothed/conv3d.py b/src/infiniop/ops/conv3d/ninetoothed/conv3d.py
+new file mode 100644
+index 00000000..12e4b370
+--- /dev/null
++++ b/src/infiniop/ops/conv3d/ninetoothed/conv3d.py
+@@ -0,0 +1,82 @@
++"""NineToothed dense Conv3D candidate for the H3 video VAE.
++
++This extends the pinned NTops Conv2D im2col arrangement to three spatial axes.
++It is not selected in formal inference until target numerical tests pass.
++"""
++import copy
++import functools
++
++import ninetoothed as nt
++import ninetoothed.language as ntl
++from ntops.kernels import mm
++
++
++def arrangement(input, weight, bias, output, input_precision, *, stride,
++                padding, dilation, block_size_m, block_size_n, block_size_k):
++    matrix = functools.partial(mm.arrangement, block_size_m=block_size_m,
++                               block_size_n=block_size_n, block_size_k=block_size_k)
++    columns = input.pad(((0, 0), (0, 0), *((p, p) for p in padding)))
++    columns = columns.tile((1, *weight.shape[1:]),
++                           strides=(-1, -1, *stride), dilation=(1, 1, *dilation),
++                           floor_mode=True)
++    columns = columns.squeeze(1)
++    columns.dtype = columns.dtype.squeeze(0)
++    columns = columns.ravel().flatten(end_dim=4).flatten(start_dim=1)
++    filters = weight.flatten(start_dim=1).permute((1, 0))
++    affine = bias[None, :, None, None, None].expand(
++        (output.shape[0], -1, *output.shape[2:]))
++    affine = affine.permute((0, 2, 3, 4, 1)).flatten(end_dim=4)
++    result = output.permute((0, 2, 3, 4, 1)).flatten(end_dim=4)
++    _, _, affine, _ = matrix(copy.deepcopy(columns), copy.deepcopy(filters),
++                             affine, copy.deepcopy(input_precision))
++    columns, filters, result, precision = matrix(columns, filters, result, input_precision)
++    return columns, filters, affine, result, precision
++
++
++def application(input, weight, bias, output, input_precision):
++    accumulator = ntl.zeros(output.shape, dtype=ntl.float32)
++    for block in range(input.shape[0]):
++        accumulator += ntl.dot(input[block], weight[block])
++    output = accumulator + bias
++
++
++def application_bias_bf16(input, weight, bias, output, input_precision):
++    accumulator = ntl.zeros(output.shape, dtype=ntl.float32)
++    for block in range(input.shape[0]):
++        accumulator += ntl.dot(input[block], weight[block])
++    rounded = ntl.cast(accumulator, ntl.bfloat16)
++    output = ntl.cast(rounded, ntl.float32) + bias
++
++
++def application_bias_f16(input, weight, bias, output, input_precision):
++    accumulator = ntl.zeros(output.shape, dtype=ntl.float32)
++    for block in range(input.shape[0]):
++        accumulator += ntl.dot(input[block], weight[block])
++    rounded = ntl.cast(accumulator, ntl.float16)
++    output = ntl.cast(rounded, ntl.float32) + bias
++
++
++def premake(stride=(1, 1, 1), padding=(0, 0, 0), dilation=(1, 1, 1),
++            dtype=None, block_size_m=16, block_size_n=16, block_size_k=32,
++            round_before_bias=False):
++    if len(stride) != 3 or len(padding) != 3 or len(dilation) != 3:
++        raise ValueError("Conv3D geometry requires three spatial dimensions")
++    if any(x <= 0 for x in (*stride, *dilation)) or any(x < 0 for x in padding):
++        raise ValueError("Invalid Conv3D stride, padding, or dilation")
++    arrange = functools.partial(arrangement, stride=stride, padding=padding,
++                                dilation=dilation, block_size_m=block_size_m,
++                                block_size_n=block_size_n, block_size_k=block_size_k)
++    tensors = (nt.Tensor(5, dtype=dtype, other=0),
++               nt.Tensor(5, dtype=dtype, other=0),
++               nt.Tensor(1, dtype=dtype, other=0),
++               nt.Tensor(5, dtype=dtype),
++               nt.Tensor(0, constexpr=True, value=2))
++    selected = application
++    if round_before_bias:
++        if dtype == nt.bfloat16:
++            selected = application_bias_bf16
++        elif dtype == nt.float16:
++            selected = application_bias_f16
++        elif dtype != nt.float32:
++            raise ValueError("Bias rounding requires a concrete floating dtype")
++    return arrange, selected, tensors
+diff --git a/src/infiniop/ops/flash_attention/ninetoothed/build.py b/src/infiniop/ops/flash_attention/ninetoothed/build.py
+index ef3235df..ea3075c3 100644
+--- a/src/infiniop/ops/flash_attention/ninetoothed/build.py
++++ b/src/infiniop/ops/flash_attention/ninetoothed/build.py
+@@ -14,6 +14,16 @@ def build():
+     if any(var in os.environ for var in env_vars_to_check):
+         return
+ 
++    if os.getenv("INFINICORE_NINETOOTHED_PROFILE") == "fl2va":
++        from .flash_attention_scaled import premake
++        return infiniop.ninetoothed.build.build(
++            premake,
++            dict(with_kv_cache=(0,), emb_dim=(64, 72, 128), is_causal=(0, 1),
++                 with_attn_mask=(0,), causal_variant=(2,),
++                 dtype=(ninetoothed.bfloat16,), block_size_m=(32,), block_size_n=(32,)),
++            caller="cuda", op_name="flash_attention",
++            output_dir=infiniop.ninetoothed.build.BUILD_DIRECTORY_PATH)
++
+     with_kv_cache_values = (0,)
+     emb_dim_values = (16, 32, 64, 128, 256)
+     is_causal_values = (0, 1)
+diff --git a/src/infiniop/ops/flash_attention/ninetoothed/descriptor.h b/src/infiniop/ops/flash_attention/ninetoothed/descriptor.h
+index 0a6e9c1f..313c32b3 100644
+--- a/src/infiniop/ops/flash_attention/ninetoothed/descriptor.h
++++ b/src/infiniop/ops/flash_attention/ninetoothed/descriptor.h
+@@ -70,8 +70,8 @@ public:
+         const auto causal_variant_{2};
+         const auto dtype_{_dtype};
+ 
+-        constexpr auto block_size_m_{256};
+-        constexpr auto block_size_n_{64};
++        constexpr auto block_size_m_{32};
++        constexpr auto block_size_n_{32};
+ 
+         if (launch_flash_attention(stream,
+                                    query,
+diff --git a/src/infiniop/ops/flash_attention/ninetoothed/flash_attention.py b/src/infiniop/ops/flash_attention/ninetoothed/flash_attention.py
+index a4667ceb..e3cbc481 100644
+--- a/src/infiniop/ops/flash_attention/ninetoothed/flash_attention.py
++++ b/src/infiniop/ops/flash_attention/ninetoothed/flash_attention.py
+@@ -58,7 +58,10 @@ def arrangement(
+ 
+     def arrange_total_kv_len(input, shape):
+         arranged = input.tile((1,))
+-        arranged = arranged.unsqueeze(1).unsqueeze(2).unsqueeze(3).expand(shape)
++        arranged = (
++            arranged.unsqueeze(1).unsqueeze(2).unsqueeze(3)
++            .expand((-1, *shape[1:]))
++        )
+         return arranged
+ 
+     def arrange_present_key_or_present_value(input):
+@@ -183,7 +186,7 @@ def application_without_kv_cache(
+         lse = ntl.full((query_i.shape[-2],), 1, dtype=ntl.float32)
+         max = ntl.full((query_i.shape[-2],), float("-inf"), dtype=ntl.float32)
+ 
+-        for j in range(-(-actual_kv_len // key.dtype.shape[0])):
++        for j in range((actual_kv_len + key.dtype.shape[0] - 1) // key.dtype.shape[0]):
+             qk = ntl.dot(query_i, ntl.trans(key[j]))
+ 
+             key_pos = key[j].offsets(-2)
+@@ -209,7 +212,7 @@ def application_without_kv_cache(
+             stable_qk = ntl.exp2(qk - next_max[:, None])
+ 
+             alpha = ntl.exp2(max - next_max)
+-            acc = acc * alpha[:, None] + ntl.dot(stable_qk.to(value[i].dtype), value[j])
++            acc = acc * alpha[:, None] + ntl.dot(stable_qk.to(value[j].dtype), value[j])
+             max = next_max
+             lse = lse * alpha + ntl.sum(stable_qk, 1)
+ 
+@@ -238,6 +241,7 @@ def premake(
+         Tensor(
+             4,
+             dtype=dtype,
++            other=0,
+             shape_options=(None, None, None, {"constexpr": True, "upper_bound": 128}),
+         )
+         for _ in range(5)
+diff --git a/src/infiniop/ops/flash_attention/ninetoothed/flash_attention_reduce.py b/src/infiniop/ops/flash_attention/ninetoothed/flash_attention_reduce.py
+new file mode 100644
+index 00000000..c4055f62
+--- /dev/null
++++ b/src/infiniop/ops/flash_attention/ninetoothed/flash_attention_reduce.py
+@@ -0,0 +1,40 @@
++"""NineToothed attention using FP32 reductions for the two block products."""
++import ninetoothed.language as ntl
++from .flash_attention_simple import premake as tile_premake
++
++
++def application(query, key, value, total_kv_len, attn_mask, is_causal,
++                scale, output, with_attn_mask, causal_variant):
++    length = total_kv_len[0]
++    q = (query * (1.4426950408889634 * scale)).to(query.dtype)
++    accumulator = ntl.zeros((q.shape[0], q.shape[1]), dtype=ntl.float32)
++    normalizer = ntl.full((q.shape[0],), 1, dtype=ntl.float32)
++    maximum = ntl.full((q.shape[0],), float("-inf"), dtype=ntl.float32)
++    for block in range((length + key.dtype.shape[0] - 1) // key.dtype.shape[0]):
++        scores = ntl.sum(
++            ntl.cast(q, ntl.float32)[:, None, :]
++            * ntl.cast(key[block], ntl.float32)[None, :, :], 2)
++        key_pos = key[block].offsets(-2)
++        scores = ntl.where(key_pos[None, :] < length, scores, float("-inf"))
++        if is_causal:
++            query_pos = query.offsets(-2)
++            if causal_variant == 2:
++                causal_mask = query_pos[:, None] + length - query.source.shape[-2] >= key_pos[None, :]
++            else:
++                causal_mask = query_pos[:, None] >= key_pos[None, :]
++            scores = ntl.where(causal_mask, scores, float("-inf"))
++        next_maximum = ntl.maximum(maximum, ntl.max(scores, 1))
++        weights = ntl.exp2(scores - next_maximum[:, None])
++        alpha = ntl.exp2(maximum - next_maximum)
++        contribution = ntl.sum(
++            ntl.cast(weights.to(value[block].dtype), ntl.float32)[:, :, None]
++            * ntl.cast(value[block], ntl.float32)[None, :, :], 1)
++        accumulator = accumulator * alpha[:, None] + contribution
++        normalizer = normalizer * alpha + ntl.sum(weights, 1)
++        maximum = next_maximum
++    output = accumulator / normalizer[:, None]
++
++
++def premake(**config):
++    arrangement, _, tensors = tile_premake(**config)
++    return arrangement, application, tensors
+diff --git a/src/infiniop/ops/flash_attention/ninetoothed/flash_attention_scaled.py b/src/infiniop/ops/flash_attention/ninetoothed/flash_attention_scaled.py
+new file mode 100644
+index 00000000..bfc0c21e
+--- /dev/null
++++ b/src/infiniop/ops/flash_attention/ninetoothed/flash_attention_scaled.py
+@@ -0,0 +1,68 @@
++"""NineToothed attention with one query-head tile per program."""
++import functools
++import ninetoothed.language as ntl
++from .flash_attention import premake as original_premake
++
++
++def arrangement(query, key, value, total_kv_len, present_key, present_value,
++                present_key_slot, present_value_slot, attn_mask, is_causal,
++                scale, output, with_attn_mask, causal_variant, *,
++                block_size_m, block_size_n):
++    def arrange_q(tensor):
++        result = tensor.tile((1, 1, block_size_m, -1))
++        result.dtype = result.dtype.squeeze((0, 1))
++        return result
++
++    q = arrange_q(query)
++
++    def arrange_kv(tensor):
++        # Broadcast a KV head over its query-head group without materializing it.
++        repeated = tensor.unsqueeze(2).expand(
++            (-1, -1, query.shape[1] // key.shape[1], -1, -1)
++        ).flatten(1, 3)
++        result = repeated.tile((1, 1, block_size_n, -1)).tile((1, 1, -1, -1))
++        result = result.expand((-1, -1, q.shape[2], -1))
++        result.dtype = result.dtype.squeeze((0, 1, 3))
++        result.dtype.dtype = result.dtype.dtype.squeeze((0, 1))
++        return result
++
++    lengths = total_kv_len.tile((1,)).unsqueeze(1).unsqueeze(2).unsqueeze(3)
++    lengths = lengths.expand((-1, *q.shape[1:]))
++    return (q, arrange_kv(key), arrange_kv(value), lengths, attn_mask,
++            is_causal, scale, arrange_q(output), with_attn_mask, causal_variant)
++
++
++def application(query, key, value, total_kv_len, attn_mask, is_causal,
++                scale, output, with_attn_mask, causal_variant):
++    length = total_kv_len[0]
++    scale_f32 = ntl.full((), scale, dtype=ntl.float32)
++    q = (ntl.cast(query, ntl.float32) * (1.4426950408889634 * scale_f32)).to(query.dtype)
++    accumulator = ntl.zeros((q.shape[0], q.shape[1]), dtype=ntl.float32)
++    normalizer = ntl.full((q.shape[0],), 1, dtype=ntl.float32)
++    maximum = ntl.full((q.shape[0],), float("-inf"), dtype=ntl.float32)
++    for block in range((length + key.dtype.shape[0] - 1) // key.dtype.shape[0]):
++        scores = ntl.dot(q, ntl.trans(key[block]))
++        key_pos = key[block].offsets(-2)
++        scores = ntl.where(key_pos[None, :] < length, scores, float("-inf"))
++        if is_causal:
++            query_pos = query.offsets(-2)
++            if causal_variant == 2:
++                causal_mask = query_pos[:, None] + length - query.source.shape[-2] >= key_pos[None, :]
++            else:
++                causal_mask = query_pos[:, None] >= key_pos[None, :]
++            scores = ntl.where(causal_mask, scores, float("-inf"))
++        next_maximum = ntl.maximum(maximum, ntl.max(scores, 1))
++        weights = ntl.exp2(scores - next_maximum[:, None])
++        alpha = ntl.exp2(maximum - next_maximum)
++        accumulator = accumulator * alpha[:, None] + ntl.dot(weights.to(value[block].dtype), value[block])
++        normalizer = normalizer * alpha + ntl.sum(weights, 1)
++        maximum = next_maximum
++    output = accumulator / normalizer[:, None]
++
++
++def premake(**config):
++    if config["with_kv_cache"] or config["with_attn_mask"]:
++        raise ValueError("This attention variant requires a separate KV update and no explicit mask")
++    _, _, tensors = original_premake(**config)
++    return functools.partial(arrangement, block_size_m=config["block_size_m"],
++                             block_size_n=config["block_size_n"]), application, tensors
+diff --git a/src/infiniop/ops/flash_attention/ninetoothed/flash_attention_simple.py b/src/infiniop/ops/flash_attention/ninetoothed/flash_attention_simple.py
+new file mode 100644
+index 00000000..0c9ee32b
+--- /dev/null
++++ b/src/infiniop/ops/flash_attention/ninetoothed/flash_attention_simple.py
+@@ -0,0 +1,67 @@
++"""NineToothed attention with one query-head tile per program."""
++import functools
++import ninetoothed.language as ntl
++from .flash_attention import premake as original_premake
++
++
++def arrangement(query, key, value, total_kv_len, present_key, present_value,
++                present_key_slot, present_value_slot, attn_mask, is_causal,
++                scale, output, with_attn_mask, causal_variant, *,
++                block_size_m, block_size_n):
++    def arrange_q(tensor):
++        result = tensor.tile((1, 1, block_size_m, -1))
++        result.dtype = result.dtype.squeeze((0, 1))
++        return result
++
++    q = arrange_q(query)
++
++    def arrange_kv(tensor):
++        # Broadcast a KV head over its query-head group without materializing it.
++        repeated = tensor.unsqueeze(2).expand(
++            (-1, -1, query.shape[1] // key.shape[1], -1, -1)
++        ).flatten(1, 3)
++        result = repeated.tile((1, 1, block_size_n, -1)).tile((1, 1, -1, -1))
++        result = result.expand((-1, -1, q.shape[2], -1))
++        result.dtype = result.dtype.squeeze((0, 1, 3))
++        result.dtype.dtype = result.dtype.dtype.squeeze((0, 1))
++        return result
++
++    lengths = total_kv_len.tile((1,)).unsqueeze(1).unsqueeze(2).unsqueeze(3)
++    lengths = lengths.expand((-1, *q.shape[1:]))
++    return (q, arrange_kv(key), arrange_kv(value), lengths, attn_mask,
++            is_causal, scale, arrange_q(output), with_attn_mask, causal_variant)
++
++
++def application(query, key, value, total_kv_len, attn_mask, is_causal,
++                scale, output, with_attn_mask, causal_variant):
++    length = total_kv_len[0]
++    q = (query * (1.4426950408889634 * scale)).to(query.dtype)
++    accumulator = ntl.zeros((q.shape[0], q.shape[1]), dtype=ntl.float32)
++    normalizer = ntl.full((q.shape[0],), 1, dtype=ntl.float32)
++    maximum = ntl.full((q.shape[0],), float("-inf"), dtype=ntl.float32)
++    for block in range((length + key.dtype.shape[0] - 1) // key.dtype.shape[0]):
++        scores = ntl.dot(q, ntl.trans(key[block]))
++        key_pos = key[block].offsets(-2)
++        scores = ntl.where(key_pos[None, :] < length, scores, float("-inf"))
++        if is_causal:
++            query_pos = query.offsets(-2)
++            if causal_variant == 2:
++                causal_mask = query_pos[:, None] + length - query.source.shape[-2] >= key_pos[None, :]
++            else:
++                causal_mask = query_pos[:, None] >= key_pos[None, :]
++            scores = ntl.where(causal_mask, scores, float("-inf"))
++        next_maximum = ntl.maximum(maximum, ntl.max(scores, 1))
++        weights = ntl.exp2(scores - next_maximum[:, None])
++        alpha = ntl.exp2(maximum - next_maximum)
++        accumulator = accumulator * alpha[:, None] + ntl.dot(weights.to(value[block].dtype), value[block])
++        normalizer = normalizer * alpha + ntl.sum(weights, 1)
++        maximum = next_maximum
++    output = accumulator / normalizer[:, None]
++
++
++def premake(**config):
++    if config["with_kv_cache"] or config["with_attn_mask"]:
++        raise ValueError("This attention variant requires a separate KV update and no explicit mask")
++    _, _, tensors = original_premake(**config)
++    return functools.partial(arrangement, block_size_m=config["block_size_m"],
++                             block_size_n=config["block_size_n"]), application, tensors
+diff --git a/src/infiniop/ops/flash_attention/ninetoothed/flash_attention_standard.py b/src/infiniop/ops/flash_attention/ninetoothed/flash_attention_standard.py
+new file mode 100644
+index 00000000..3a8ee929
+--- /dev/null
++++ b/src/infiniop/ops/flash_attention/ninetoothed/flash_attention_standard.py
+@@ -0,0 +1,68 @@
++"""NineToothed attention with one query-head tile per program."""
++import functools
++import ninetoothed.language as ntl
++from .flash_attention import premake as original_premake
++
++
++def arrangement(query, key, value, total_kv_len, present_key, present_value,
++                present_key_slot, present_value_slot, attn_mask, is_causal,
++                scale, output, with_attn_mask, causal_variant, *,
++                block_size_m, block_size_n):
++    def arrange_q(tensor):
++        result = tensor.tile((1, 1, block_size_m, -1))
++        result.dtype = result.dtype.squeeze((0, 1))
++        return result
++
++    q = arrange_q(query)
++
++    def arrange_kv(tensor):
++        # Broadcast a KV head over its query-head group without materializing it.
++        repeated = tensor.unsqueeze(2).expand(
++            (-1, -1, query.shape[1] // key.shape[1], -1, -1)
++        ).flatten(1, 3)
++        result = repeated.tile((1, 1, block_size_n, -1)).tile((1, 1, -1, -1))
++        result = result.expand((-1, -1, q.shape[2], -1))
++        result.dtype = result.dtype.squeeze((0, 1, 3))
++        result.dtype.dtype = result.dtype.dtype.squeeze((0, 1))
++        return result
++
++    lengths = total_kv_len.tile((1,)).unsqueeze(1).unsqueeze(2).unsqueeze(3)
++    lengths = lengths.expand((-1, *q.shape[1:]))
++    return (q, arrange_kv(key), arrange_kv(value), lengths, attn_mask,
++            is_causal, scale, arrange_q(output), with_attn_mask, causal_variant)
++
++
++def application(query, key, value, total_kv_len, attn_mask, is_causal,
++                scale, output, with_attn_mask, causal_variant):
++    length = total_kv_len[0]
++    scale_f32 = ntl.full((), scale, dtype=ntl.float32)
++    q = query
++    accumulator = ntl.zeros((q.shape[0], q.shape[1]), dtype=ntl.float32)
++    normalizer = ntl.full((q.shape[0],), 1, dtype=ntl.float32)
++    maximum = ntl.full((q.shape[0],), float("-inf"), dtype=ntl.float32)
++    for block in range((length + key.dtype.shape[0] - 1) // key.dtype.shape[0]):
++        scores = ntl.dot(q, ntl.trans(key[block])) * (1.4426950408889634 * scale_f32)
++        key_pos = key[block].offsets(-2)
++        scores = ntl.where(key_pos[None, :] < length, scores, float("-inf"))
++        if is_causal:
++            query_pos = query.offsets(-2)
++            if causal_variant == 2:
++                causal_mask = query_pos[:, None] + length - query.source.shape[-2] >= key_pos[None, :]
++            else:
++                causal_mask = query_pos[:, None] >= key_pos[None, :]
++            scores = ntl.where(causal_mask, scores, float("-inf"))
++        next_maximum = ntl.maximum(maximum, ntl.max(scores, 1))
++        weights = ntl.exp2(scores - next_maximum[:, None])
++        alpha = ntl.exp2(maximum - next_maximum)
++        accumulator = accumulator * alpha[:, None] + ntl.dot(weights.to(value[block].dtype), value[block])
++        normalizer = normalizer * alpha + ntl.sum(weights, 1)
++        maximum = next_maximum
++    output = accumulator / normalizer[:, None]
++
++
++def premake(**config):
++    if config["with_kv_cache"] or config["with_attn_mask"]:
++        raise ValueError("This attention variant requires a separate KV update and no explicit mask")
++    _, _, tensors = original_premake(**config)
++    return functools.partial(arrangement, block_size_m=config["block_size_m"],
++                             block_size_n=config["block_size_n"]), application, tensors
+diff --git a/src/infiniop/ops/flash_attention/operator.cc b/src/infiniop/ops/flash_attention/operator.cc
+index 9867d8ef..0ac1e6e2 100644
+--- a/src/infiniop/ops/flash_attention/operator.cc
++++ b/src/infiniop/ops/flash_attention/operator.cc
+@@ -3,7 +3,7 @@
+ #include "infiniop/ops/flash_attention.h"
+ 
+ #if defined(ENABLE_NINETOOTHED)
+-#if defined(ENABLE_NVIDIA_API)
++#if defined(ENABLE_NVIDIA_API) || defined(ENABLE_HYGON_API)
+ #include "ninetoothed/descriptor.h"
+ #endif
+ #endif
+@@ -38,6 +38,9 @@ __INFINI_C infiniStatus_t infiniopCreateFlashAttentionDescriptor(
+ #if defined(ENABLE_NVIDIA_API)
+         CREATE(INFINI_DEVICE_NVIDIA, ninetoothed);
+ #endif
++#if defined(ENABLE_HYGON_API)
++        CREATE(INFINI_DEVICE_HYGON, ninetoothed);
++#endif
+ #endif
+ #if defined(ENABLE_ASCEND)
+         CREATE(INFINI_DEVICE_ASCEND, ascend);
+@@ -64,6 +67,9 @@ __INFINI_C infiniStatus_t infiniopGetFlashAttentionWorkspaceSize(
+ #if defined(ENABLE_NVIDIA_API)
+         GET_SIZE(INFINI_DEVICE_NVIDIA, ninetoothed);
+ #endif
++#if defined(ENABLE_HYGON_API)
++        GET_SIZE(INFINI_DEVICE_HYGON, ninetoothed);
++#endif
+ #endif
+     default:
+         return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
+@@ -94,6 +100,9 @@ __INFINI_C infiniStatus_t infiniopFlashAttention(
+ #if defined(ENABLE_NVIDIA_API)
+         CALCULATE(INFINI_DEVICE_NVIDIA, ninetoothed);
+ #endif
++#if defined(ENABLE_HYGON_API)
++        CALCULATE(INFINI_DEVICE_HYGON, ninetoothed);
++#endif
+ #endif
+     default:
+         return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
+@@ -116,6 +125,9 @@ __INFINI_C infiniStatus_t infiniopDestroyFlashAttentionDescriptor(
+ #if defined(ENABLE_NVIDIA_API)
+         DESTROY(INFINI_DEVICE_NVIDIA, ninetoothed);
+ #endif
++#if defined(ENABLE_HYGON_API)
++        DESTROY(INFINI_DEVICE_HYGON, ninetoothed);
++#endif
+ #endif
+     default:
+         return INFINI_STATUS_DEVICE_TYPE_NOT_SUPPORTED;
+diff --git a/src/infiniop/ops/group_norm/ninetoothed/group_norm.py b/src/infiniop/ops/group_norm/ninetoothed/group_norm.py
+new file mode 100644
+index 00000000..a5076650
+--- /dev/null
++++ b/src/infiniop/ops/group_norm/ninetoothed/group_norm.py
+@@ -0,0 +1,59 @@
++"""NineToothed group normalization with FP32 reduction and explicit stats.
++
++Storage is supplied as [batch, groups, channels_per_group * spatial] views.
++Affine tensors use [groups, channels_per_group]; their broadcast is symbolic.
++"""
++import functools
++
++import ninetoothed as nt
++import ninetoothed.language as ntl
++from ntops.kernels.reduction import arrangement as reduce_arrangement
++
++
++def arrangement(input, weight, bias, output, mean, rstd, eps, *, block_size):
++    spatial = input.shape[2] // weight.shape[1]
++
++    def affine(tensor):
++        return tensor[None, :, :, None].expand(
++            (input.shape[0], -1, -1, spatial)
++        ).flatten(start_dim=2)
++
++    inputs = reduce_arrangement(input, affine(weight), affine(bias), output,
++                                dim=-1, block_size=block_size)
++
++    def statistic(tensor):
++        tiled = tensor.tile((1, 1, 1))
++        tiled.dtype = tiled.dtype.squeeze((0, 1))
++        return tiled
++
++    return *inputs, statistic(mean), statistic(rstd), eps
++
++
++def application(input, weight, bias, output, mean, rstd, eps):
++    count = input.source.shape[-1]
++    total = ntl.zeros(input.dtype.shape, dtype=ntl.float32)
++    for block in range(input.shape[0]):
++        total += ntl.cast(input[block], ntl.float32)
++    group_mean = ntl.sum(total, 0) / count
++    squares = ntl.zeros(input.dtype.shape, dtype=ntl.float32)
++    for block in range(input.shape[0]):
++        delta = ntl.cast(input[block], ntl.float32) - group_mean
++        delta = ntl.where(input[block].offsets(-1) < count, delta, 0)
++        squares += delta * delta
++    group_rstd = ntl.rsqrt(ntl.sum(squares, 0) / count + eps)
++    mean = group_mean
++    rstd = group_rstd
++    for block in range(input.shape[0]):
++        normalized = (ntl.cast(input[block], ntl.float32) - group_mean) * group_rstd
++        output[block] = normalized * weight[block] + bias[block]
++
++
++def premake(dtype, eps=1e-6, block_size=512):
++    if eps <= 0 or block_size <= 0:
++        raise ValueError("GroupNorm requires positive epsilon and block size")
++    tensors = (nt.Tensor(3, dtype=dtype, other=0),
++               nt.Tensor(2, dtype=dtype), nt.Tensor(2, dtype=dtype),
++               nt.Tensor(3, dtype=dtype), nt.Tensor(shape=(None, None, 1), dtype=nt.float32),
++               nt.Tensor(shape=(None, None, 1), dtype=nt.float32), nt.Tensor(0, constexpr=True, value=eps))
++    return (functools.partial(arrangement, block_size=block_size),
++            application, tensors)
+diff --git a/src/infiniop/ops/kv_caching/ninetoothed/build.py b/src/infiniop/ops/kv_caching/ninetoothed/build.py
+index f7649743..a3a5a76d 100644
+--- a/src/infiniop/ops/kv_caching/ninetoothed/build.py
++++ b/src/infiniop/ops/kv_caching/ninetoothed/build.py
+@@ -1,3 +1,5 @@
++import os
++
+ import ninetoothed
+ 
+ import infiniop.ninetoothed.build
+@@ -6,14 +8,26 @@ from . import kv_caching
+ 
+ 
+ def build():
++    dtype_by_name = {
++        "float16": ninetoothed.float16,
++        "bfloat16": ninetoothed.bfloat16,
++        "float32": ninetoothed.float32,
++    }
++    requested_dtypes = os.getenv("INFINICORE_KV_CACHING_DTYPES")
+     dtype_values = (
+-        ninetoothed.float16,
+-        ninetoothed.bfloat16,
+-        ninetoothed.float32,
++        tuple(dtype_by_name[name] for name in requested_dtypes.split(","))
++        if requested_dtypes
++        else tuple(dtype_by_name.values())
++    )
++    requested_dims = os.getenv("INFINICORE_KV_CACHING_EMB_DIMS")
++    emb_dim_values = (
++        tuple(int(dim) for dim in requested_dims.split(","))
++        if requested_dims
++        else (1, 16, 32, 64, 128, 256)
+     )
+ 
+     constexpr_param_grid = {
+-        "emb_dim": (1, 16, 32, 64, 128, 256),
++        "emb_dim": emb_dim_values,
+         "dtype": dtype_values,
+         "block_size_m": (64,),
+         "block_size_n": (64,),
+diff --git a/src/infiniop/ops/kv_caching/ninetoothed/kv_caching.h b/src/infiniop/ops/kv_caching/ninetoothed/kv_caching.h
+index 43388f58..6d1e1c06 100644
+--- a/src/infiniop/ops/kv_caching/ninetoothed/kv_caching.h
++++ b/src/infiniop/ops/kv_caching/ninetoothed/kv_caching.h
+@@ -1,5 +1,5 @@
+-#ifndef KV_CACHING_H
+-#define KV_CACHING_H
++#ifndef INFINIOP_NINETOOTHED_KV_CACHING_H
++#define INFINIOP_NINETOOTHED_KV_CACHING_H
+ 
+ #include "../../../handle.h"
+ #include "../../../operator.h"
+@@ -98,4 +98,4 @@ private:
+ };
+ } // namespace op::kv_caching::ninetoothed
+ 
+-#endif // KV_CACHING_H
++#endif // INFINIOP_NINETOOTHED_KV_CACHING_H
+diff --git a/src/infiniop/ops/kv_caching/ninetoothed/kv_caching.py b/src/infiniop/ops/kv_caching/ninetoothed/kv_caching.py
+index 006dbe37..6c6bc6f8 100644
+--- a/src/infiniop/ops/kv_caching/ninetoothed/kv_caching.py
++++ b/src/infiniop/ops/kv_caching/ninetoothed/kv_caching.py
+@@ -24,8 +24,7 @@ def arrangement(
+         .unsqueeze(1)
+         .unsqueeze(2)
+         .unsqueeze(3)
+-        .unsqueeze(4)
+-        .expand((-1, *k_arranged.shape))
++        .expand((-1, *k_arranged.shape[1:]))
+     )
+ 
+     return (
+@@ -61,7 +60,9 @@ def premake(emb_dim=None, dtype=None, block_size_m=None, block_size_n=None):
+     )
+ 
+     if emb_dim is not None:
+-        for tensor in tensors:
++        # The fifth argument is one sequence offset per batch item; its length
++        # is independent of the attention head dimension.
++        for tensor in tensors[:4]:
+             tensor.shape = tensor.shape[:-1] + (emb_dim,)
+ 
+     return arrangement_, application, tensors
+diff --git a/src/infiniop/ops/kv_caching/operator.cc b/src/infiniop/ops/kv_caching/operator.cc
+index e83bb124..ac81f868 100644
+--- a/src/infiniop/ops/kv_caching/operator.cc
++++ b/src/infiniop/ops/kv_caching/operator.cc
+@@ -5,6 +5,9 @@
+ #if defined(ENABLE_NVIDIA_API) || defined(ENABLE_QY_API) || defined(ENABLE_ILUVATAR_API) || defined(ENABLE_ALI_API) || defined(ENABLE_HYGON_API)
+ #include "nvidia/kv_caching_nvidia.cuh"
+ #endif
++#if defined(ENABLE_HYGON_API) && defined(ENABLE_NINETOOTHED)
++#include "ninetoothed/kv_caching.h"
++#endif
+ #if defined(ENABLE_METAX_API)
+ #include "metax/kv_caching_metax.h"
+ #endif
+@@ -44,8 +47,12 @@ __INFINI_C infiniStatus_t infiniopCreateKVCachingDescriptor(
+         CREATE(INFINI_DEVICE_ALI, nvidia);
+ #endif
+ #ifdef ENABLE_HYGON_API
++#ifdef ENABLE_NINETOOTHED
++        CREATE(INFINI_DEVICE_HYGON, ninetoothed);
++#else
+         CREATE(INFINI_DEVICE_HYGON, nvidia);
+ #endif
++#endif
+ #if defined(ENABLE_METAX_API)
+         CREATE(INFINI_DEVICE_METAX, metax);
+ #endif
+@@ -82,8 +89,12 @@ __INFINI_C infiniStatus_t infiniopGetKVCachingWorkspaceSize(
+         GET_SIZE(INFINI_DEVICE_ALI, nvidia);
+ #endif
+ #ifdef ENABLE_HYGON_API
++#ifdef ENABLE_NINETOOTHED
++        GET_SIZE(INFINI_DEVICE_HYGON, ninetoothed);
++#else
+         GET_SIZE(INFINI_DEVICE_HYGON, nvidia);
+ #endif
++#endif
+ #if defined(ENABLE_METAX_API)
+         GET_SIZE(INFINI_DEVICE_METAX, metax);
+ #endif
+@@ -126,8 +137,12 @@ __INFINI_C infiniStatus_t infiniopKVCaching(
+         CALCULATE(INFINI_DEVICE_ALI, nvidia);
+ #endif
+ #ifdef ENABLE_HYGON_API
++#ifdef ENABLE_NINETOOTHED
++        CALCULATE(INFINI_DEVICE_HYGON, ninetoothed);
++#else
+         CALCULATE(INFINI_DEVICE_HYGON, nvidia);
+ #endif
++#endif
+ #if defined(ENABLE_METAX_API)
+         CALCULATE(INFINI_DEVICE_METAX, metax);
+ #endif
+@@ -162,8 +177,12 @@ __INFINI_C infiniStatus_t infiniopDestroyKVCachingDescriptor(
+         DELETE(INFINI_DEVICE_ALI, nvidia);
+ #endif
+ #ifdef ENABLE_HYGON_API
++#ifdef ENABLE_NINETOOTHED
++        DELETE(INFINI_DEVICE_HYGON, ninetoothed);
++#else
+         DELETE(INFINI_DEVICE_HYGON, nvidia);
+ #endif
++#endif
+ #if defined(ENABLE_METAX_API)
+         DELETE(INFINI_DEVICE_METAX, metax);
+ #endif
+diff --git a/src/infiniop/ops/matmul/ninetoothed/matmul_accumulate_f32.py b/src/infiniop/ops/matmul/ninetoothed/matmul_accumulate_f32.py
+new file mode 100644
+index 00000000..181b3309
+--- /dev/null
++++ b/src/infiniop/ops/matmul/ninetoothed/matmul_accumulate_f32.py
+@@ -0,0 +1,12 @@
++"""BF16 NT dot products retained in FP32 for TP reduction."""
++import functools
++import ninetoothed as nt
++import ninetoothed.language as ntl
++from ntops.kernels.mm import arrangement
++def application(input,weight,output,precision):
++ accumulator=ntl.zeros(output.shape,dtype=ntl.float32)
++ for block in range(input.shape[0]):accumulator+=ntl.dot(input[block],weight[block])
++ output=accumulator
++def premake():
++ tensors=(nt.Tensor(2,dtype=nt.bfloat16,other=0),nt.Tensor(2,dtype=nt.bfloat16,other=0),nt.Tensor(2,dtype=nt.float32),nt.Tensor(0,constexpr=True,value=2))
++ return functools.partial(arrangement,block_size_m=32,block_size_n=32,block_size_k=32),application,tensors
+diff --git a/src/infiniop/ops/minimax_h3_rope_cache/ninetoothed/rope_cache.py b/src/infiniop/ops/minimax_h3_rope_cache/ninetoothed/rope_cache.py
+new file mode 100644
+index 00000000..40dbf309
+--- /dev/null
++++ b/src/infiniop/ops/minimax_h3_rope_cache/ninetoothed/rope_cache.py
+@@ -0,0 +1,45 @@
++"""NineToothed H3 continuous three-axis rotary-cache candidate.
++
++Output storage is [tokens, cos_or_sin, axis, frequency], which is a view of
++InfiniLM's [tokens, 6 * rope_freq_dim] cache. This candidate is not yet enabled
++in the native adapter; target-device numeric validation is required first.
++"""
++import functools
++
++import ninetoothed as nt
++import ninetoothed.language as ntl
++from ninetoothed.language import libdevice
++
++
++def arrangement(position_ids, output, rope_freq_dim, rope_theta):
++    positions = position_ids.tile((1, -1))
++    positions.dtype = positions.dtype.squeeze(0)
++    positions = positions.unsqueeze(1).unsqueeze(3)
++
++    cache = output.tile((1, 1, -1, -1)).tile((1, -1, 1, 1))
++    cache.dtype = cache.dtype.squeeze((0, 2, 3))
++    cache.dtype.dtype = cache.dtype.dtype.squeeze((0, 1))
++    return positions, cache, rope_freq_dim, rope_theta
++
++
++def application(position_ids, output, rope_freq_dim, rope_theta):
++    frequency_index = ntl.arange(0, rope_freq_dim).to(ntl.float32)
++    theta = ntl.full((), rope_theta, dtype=ntl.float32)
++    inverse_frequency = 1.0 / libdevice.pow(theta, frequency_index / rope_freq_dim)
++    phase = ntl.cast(position_ids, ntl.float32)[:, None] * inverse_frequency
++    output[0] = libdevice.cos(phase)
++    output[1] = libdevice.sin(phase)
++
++
++def premake(rope_freq_dim=16, rope_theta=10000.0, position_dtype=None, dtype=None):
++    if rope_freq_dim <= 0 or rope_freq_dim & (rope_freq_dim - 1):
++        raise ValueError("rope_freq_dim must be a positive power of two")
++    if rope_theta <= 0:
++        raise ValueError("rope_theta must be positive")
++    position_ids = nt.Tensor(2, dtype=position_dtype, other=0)
++    position_ids.shape = (position_ids.shape[0], 3)
++    output = nt.Tensor(4, dtype=dtype, shape_options=(None, None, None, {"constexpr": True}))
++    output.shape = (output.shape[0], 2, 3, rope_freq_dim)
++    frequency_count = nt.Tensor(0, constexpr=True, value=rope_freq_dim)
++    theta = nt.Tensor(0, constexpr=True, value=float(rope_theta))
++    return arrangement, application, (position_ids, output, frequency_count, theta)
+diff --git a/src/infiniop/ops/qwen_rms_norm/ninetoothed/qwen_rms_norm.py b/src/infiniop/ops/qwen_rms_norm/ninetoothed/qwen_rms_norm.py
+new file mode 100644
+index 00000000..2a1151c1
+--- /dev/null
++++ b/src/infiniop/ops/qwen_rms_norm/ninetoothed/qwen_rms_norm.py
+@@ -0,0 +1,14 @@
++"""NineToothed Qwen RMSNorm with two reference rounding boundaries."""
++import functools
++import ninetoothed as nt
++import ninetoothed.language as ntl
++def arrangement(input,weight,output,eps,*,width):
++ def rows(tensor):
++  x=tensor.tile((1,width));x.dtype=x.dtype.squeeze(0);return x
++ affine=weight[None,:].expand((input.shape[0],-1))
++ return rows(input),rows(affine),rows(output),eps
++def application(input,weight,output,eps):
++ values=ntl.cast(input,ntl.float32);variance=ntl.sum(values*values,0)/input.source.shape[-1];inverse_rms=ntl.rsqrt(variance+ntl.cast(eps,ntl.float32));normalized=(values*inverse_rms).to(input.dtype);output=ntl.cast(normalized,ntl.float32)*ntl.cast(weight,ntl.float32)
++def premake(width,dtype):
++ tensors=(nt.Tensor(shape=(None,width),dtype=dtype,other=0),nt.Tensor(shape=(width,),dtype=dtype,other=0),nt.Tensor(shape=(None,width),dtype=dtype),nt.Tensor(0,dtype=nt.float64))
++ return functools.partial(arrangement,width=width),application,tensors
+diff --git a/src/infiniop/ops/swiglu/ninetoothed/build.py b/src/infiniop/ops/swiglu/ninetoothed/build.py
+index 10c82d53..b206c69f 100644
+--- a/src/infiniop/ops/swiglu/ninetoothed/build.py
++++ b/src/infiniop/ops/swiglu/ninetoothed/build.py
+@@ -1,3 +1,4 @@
++import os
+ import ninetoothed
+ 
+ import infiniop.ninetoothed.build
+@@ -6,6 +7,12 @@ from . import swiglu
+ 
+ 
+ def build():
++    if os.getenv("INFINICORE_NINETOOTHED_PROFILE") == "fl2va":
++        from .swiglu_reference import premake
++        return infiniop.ninetoothed.build.build(
++            premake, dict(ndim=(3,), dtype=(ninetoothed.bfloat16,), block_size=(1024,)),
++            caller="cuda", op_name="swiglu",
++            output_dir=infiniop.ninetoothed.build.BUILD_DIRECTORY_PATH)
+     MAX_NDIM = 5
+ 
+     ndim_values = range(1, MAX_NDIM + 1)
+diff --git a/src/infiniop/ops/swiglu/ninetoothed/swiglu_reference.py b/src/infiniop/ops/swiglu/ninetoothed/swiglu_reference.py
+new file mode 100644
+index 00000000..d4953ff2
+--- /dev/null
++++ b/src/infiniop/ops/swiglu/ninetoothed/swiglu_reference.py
+@@ -0,0 +1,17 @@
++"""Candidate SwiGLU matching BF16 SiLU rounding before multiplication."""
++import functools
++
++import ninetoothed.language as ntl
++from ninetoothed import Tensor
++from ntops.kernels.element_wise import arrangement
++
++
++def application(output, up, gate):
++    gate_f32 = ntl.cast(gate, ntl.float32)
++    activated = (ntl.sigmoid(gate_f32) * gate_f32).to(gate.dtype)
++    output = ntl.cast(activated, ntl.float32) * ntl.cast(up, ntl.float32)
++
++
++def premake(ndim, dtype=None, block_size=None):
++    tensors = tuple(Tensor(ndim, dtype=dtype) for _ in range(3))
++    return functools.partial(arrangement, block_size=block_size), application, tensors
+diff --git a/src/infiniop/ops/swiglu/operator.cc b/src/infiniop/ops/swiglu/operator.cc
+index b43cd47d..77c9fda1 100644
+--- a/src/infiniop/ops/swiglu/operator.cc
++++ b/src/infiniop/ops/swiglu/operator.cc
+@@ -11,10 +11,10 @@
+ #ifdef ENABLE_KUNLUN_API
+ #include "kunlun/swiglu_kunlun.h"
+ #endif
+-#ifdef ENABLE_METAX_API
++#if defined(ENABLE_METAX_API) || defined(ENABLE_HYGON_API)
+ #if defined(ENABLE_NINETOOTHED)
+ #include "ninetoothed/swiglu.h"
+-#else
++#elif defined(ENABLE_METAX_API)
+ #include "metax/swiglu_metax_cuda.h"
+ #endif
+ #endif
+@@ -75,8 +75,12 @@ __INFINI_C infiniStatus_t infiniopCreateSwiGLUDescriptor(
+         CREATE_CUDA(INFINI_DEVICE_QY, nvidia);
+ #endif
+ #ifdef ENABLE_HYGON_API
++#ifdef ENABLE_NINETOOTHED
++        CREATE(INFINI_DEVICE_HYGON, ninetoothed);
++#else
+         CREATE_CUDA(INFINI_DEVICE_HYGON, nvidia);
+ #endif
++#endif
+ #ifdef ENABLE_KUNLUN_API
+         CREATE(INFINI_DEVICE_KUNLUN, kunlun);
+ #endif
+@@ -139,8 +143,12 @@ __INFINI_C infiniStatus_t infiniopGetSwiGLUWorkspaceSize(infiniopSwiGLUDescripto
+         GET_CUDA(INFINI_DEVICE_QY, nvidia);
+ #endif
+ #ifdef ENABLE_HYGON_API
++#ifdef ENABLE_NINETOOTHED
++        GET(INFINI_DEVICE_HYGON, ninetoothed);
++#else
+         GET_CUDA(INFINI_DEVICE_HYGON, nvidia);
+ #endif
++#endif
+ #ifdef ENABLE_KUNLUN_API
+         GET(INFINI_DEVICE_KUNLUN, kunlun);
+ #endif
+@@ -209,8 +217,12 @@ __INFINI_C infiniStatus_t infiniopSwiGLU(
+         CALCULATE_CUDA(INFINI_DEVICE_QY, nvidia);
+ #endif
+ #ifdef ENABLE_HYGON_API
++#ifdef ENABLE_NINETOOTHED
++        CALCULATE(INFINI_DEVICE_HYGON, ninetoothed);
++#else
+         CALCULATE_CUDA(INFINI_DEVICE_HYGON, nvidia);
+ #endif
++#endif
+ #ifdef ENABLE_KUNLUN_API
+         CALCULATE(INFINI_DEVICE_KUNLUN, kunlun);
+ #endif
+@@ -274,8 +286,12 @@ infiniopDestroySwiGLUDescriptor(infiniopSwiGLUDescriptor_t desc) {
+         DELETE_CUDA(INFINI_DEVICE_QY, nvidia);
+ #endif
+ #ifdef ENABLE_HYGON_API
++#ifdef ENABLE_NINETOOTHED
++        DELETE(INFINI_DEVICE_HYGON, ninetoothed);
++#else
+         DELETE_CUDA(INFINI_DEVICE_HYGON, nvidia);
+ #endif
++#endif
+ #ifdef ENABLE_KUNLUN_API
+         DELETE(INFINI_DEVICE_KUNLUN, kunlun);
+ #endif
+diff --git a/src/infiniop/ops/vae_support/ninetoothed/grid.py b/src/infiniop/ops/vae_support/ninetoothed/grid.py
+new file mode 100644
+index 00000000..ef2e23e4
+--- /dev/null
++++ b/src/infiniop/ops/vae_support/ninetoothed/grid.py
+@@ -0,0 +1,40 @@
++"""NineToothed finite linspace candidate for scheduler configuration grids."""
++import functools
++
++import ninetoothed as nt
++import ninetoothed.language as ntl
++
++
++def arrangement(output, start, end):
++    return output.tile((128,)), start, end
++
++
++def application_f64(output, start, end):
++    index = ntl.cast(output.offsets(-1), ntl.float64)
++    count = output.source.shape[0]
++    left = ntl.full((), start, dtype=ntl.float64)
++    right = ntl.full((), end, dtype=ntl.float64)
++    step = (right - left) / (count - 1)
++    output = ntl.where(index < count // 2,
++                       left + step * index,
++                       right - step * (count - 1 - index))
++
++
++def application_f32(output, start, end):
++    index = ntl.cast(output.offsets(-1), ntl.float32)
++    count = output.source.shape[0]
++    left = ntl.full((), start, dtype=ntl.float32)
++    right = ntl.full((), end, dtype=ntl.float32)
++    step = (right - left) / (count - 1)
++    output = ntl.where(index < count // 2,
++                       left + step * index,
++                       right - step * (count - 1 - index))
++
++
++def premake(count, start=1.0, end=0.0, wide_step=True):
++    if count < 2:
++        raise ValueError("Scheduler grids require at least two points")
++    tensors = (nt.Tensor(shape=(count,), dtype=nt.float32),
++               nt.Tensor(0, constexpr=True, value=start),
++               nt.Tensor(0, constexpr=True, value=end))
++    return arrangement, application_f64 if wide_step else application_f32, tensors
+diff --git a/src/infiniop/ops/vae_support/ninetoothed/initializers.py b/src/infiniop/ops/vae_support/ninetoothed/initializers.py
+new file mode 100644
+index 00000000..2541cbd3
+--- /dev/null
++++ b/src/infiniop/ops/vae_support/ninetoothed/initializers.py
+@@ -0,0 +1,76 @@
++"""NineToothed numerical buffers created while loading the H3 VAEs."""
++import ninetoothed as nt
++import ninetoothed.language as ntl
++from ninetoothed.language import libdevice
++
++
++def rotary_arrangement(output, count, theta):
++    return output.tile((128,)), count, theta
++
++
++def rotary_application(output, count, theta):
++    index = ntl.cast(output.offsets(-1), ntl.float64)
++    step = ntl.full((), 1.0 / count, dtype=ntl.float64)
++    exponent = ntl.cast(index * step, ntl.float32)
++    base = ntl.full((), theta, dtype=ntl.float32)
++    powered = libdevice.pow(base, exponent)
++    output = 1.0 / powered
++
++
++def premake_rotary(count, theta):
++    return rotary_arrangement, rotary_application, (
++        nt.Tensor(1, dtype=nt.float32),
++        nt.Tensor(0, constexpr=True, value=count),
++        nt.Tensor(0, constexpr=True, value=theta))
++
++
++def filter_arrangement(output, count, cutoff, beta):
++    return output.tile((128,)), count, cutoff, beta
++
++
++def filter_application(output, count, cutoff, beta):
++    index = ntl.cast(output.offsets(-1), ntl.float32)
++    alpha = (count - 1) / 2.0
++    normalized = (index - alpha) / alpha
++    beta32 = ntl.full((), beta, dtype=ntl.float32)
++    argument = beta32 * ntl.sqrt(ntl.maximum(1.0 - normalized * normalized, 0.0))
++    numerator = ntl.full((128,), 1.0, dtype=ntl.float32)
++    denominator = ntl.full((), 1.0, dtype=ntl.float32)
++    term = ntl.full((128,), 1.0, dtype=ntl.float32)
++    base_term = ntl.full((), 1.0, dtype=ntl.float32)
++    for order in range(1, 32):
++        term = term * (argument * argument / 4.0) / (order * order)
++        base_term = base_term * (beta32 * beta32 / 4.0) / (order * order)
++        numerator = numerator + term
++        denominator = denominator + base_term
++    window = numerator / denominator
++    time = index - count // 2
++    if count % 2 == 0:
++        time = time + 0.5
++    frequency = 2.0 * cutoff * time
++    phase = 3.141592653589793 * frequency
++    sinc = ntl.where(frequency == 0, 1.0, libdevice.sin(phase) / phase)
++    output = 2.0 * cutoff * window * sinc
++
++
++def premake_filter(count, cutoff, beta):
++    return filter_arrangement, filter_application, (
++        nt.Tensor(1, dtype=nt.float32),
++        nt.Tensor(0, constexpr=True, value=count),
++        nt.Tensor(0, constexpr=True, value=cutoff),
++        nt.Tensor(0, constexpr=True, value=beta))
++
++
++def normalize_arrangement(input, output):
++    source = input.tile((128,))
++    return source, output.tile((128,))
++
++
++def normalize_application(input, output):
++    total = ntl.sum(input, 0)
++    output = input / total
++
++
++def premake_normalize():
++    return normalize_arrangement, normalize_application, (
++        nt.Tensor(1, dtype=nt.float32, other=0), nt.Tensor(1, dtype=nt.float32))
+diff --git a/src/infiniop/ops/vae_support/ninetoothed/normalization.py b/src/infiniop/ops/vae_support/ninetoothed/normalization.py
+new file mode 100644
+index 00000000..9ccf4c79
+--- /dev/null
++++ b/src/infiniop/ops/vae_support/ninetoothed/normalization.py
+@@ -0,0 +1,43 @@
++"""NineToothed RMSNorm/LayerNorm with independently typed affine storage."""
++import functools
++
++import ninetoothed as nt
++import ninetoothed.language as ntl
++
++
++def arrangement(input, weight, bias, output, eps, centered, *, width):
++    def rows(tensor):
++        tiled = tensor.tile((1, width))
++        tiled.dtype = tiled.dtype.squeeze(0)
++        return tiled
++    w = weight[None, :].expand((input.shape[0], -1))
++    b = bias[None, :].expand((input.shape[0], -1))
++    return rows(input), rows(w), rows(b), rows(output), eps, centered
++
++
++def application(input, weight, bias, output, eps, centered):
++    values = ntl.cast(input, ntl.float32)
++    count = input.source.shape[-1]
++    if centered:
++        mean = ntl.sum(values, 0) / count
++        centered_values = values - mean
++        centered_values = ntl.where(input.offsets(-1) < count, centered_values, 0)
++        variance = ntl.sum(centered_values * centered_values, 0) / count
++        normalized = centered_values * ntl.rsqrt(variance + ntl.cast(eps, ntl.float32))
++    else:
++        variance = ntl.sum(values * values, 0) / count
++        normalized = values * ntl.rsqrt(variance + ntl.cast(eps, ntl.float32))
++    output = normalized * ntl.cast(weight, ntl.float32) + ntl.cast(bias, ntl.float32)
++
++
++def premake(width, centered, input_dtype, weight_dtype=None, bias_dtype=None, output_dtype=None):
++    weight_dtype = weight_dtype or input_dtype
++    bias_dtype = bias_dtype or input_dtype
++    output_dtype = output_dtype or input_dtype
++    tensors = (nt.Tensor(shape=(None, width), dtype=input_dtype, other=0),
++               nt.Tensor(shape=(width,), dtype=weight_dtype, other=0),
++               nt.Tensor(shape=(width,), dtype=bias_dtype, other=0),
++               nt.Tensor(shape=(None, width), dtype=output_dtype),
++               nt.Tensor(0, dtype=nt.float64),
++               nt.Tensor(0, constexpr=True, value=int(centered)))
++    return functools.partial(arrangement, width=width), application, tensors
+diff --git a/src/infiniop/ops/vae_support/ninetoothed/positions.py b/src/infiniop/ops/vae_support/ninetoothed/positions.py
+new file mode 100644
+index 00000000..7b283ad8
+--- /dev/null
++++ b/src/infiniop/ops/vae_support/ninetoothed/positions.py
+@@ -0,0 +1,58 @@
++"""FL2VA packed rotary positions, including sequential FP64 time sums."""
++import ninetoothed as nt
++import ninetoothed.language as ntl
++
++
++def arrangement(output, text, frames, height, width, patch_h, patch_w, audio, channels, anchors):
++    return (output.tile((128, 4)), text, frames, height, width,
++            patch_h, patch_w, audio, channels, anchors)
++
++
++def application(output, text, frames, height, width, patch_h, patch_w, audio, channels, anchors):
++    row = output.offsets(-2)
++    axis = output.offsets(-1)
++    rows_per_frame = (height // patch_h) * (width // patch_w)
++    audio_start = text + anchors * rows_per_frame
++    video_start = audio_start + audio * channels
++    video_row = ntl.maximum(row - video_start, 0)
++    frame = video_row // rows_per_frame
++    clock = ntl.full((128,), 0.0, dtype=ntl.float64)
++    for index in range(frames):
++        span = ntl.full((), 1.6666666666666667, dtype=ntl.float64)
++        if index % 5 != 0:
++            span = span * 4.0
++        clock = clock + ntl.where(index < frame, span, 0.0)
++    text64 = ntl.full((), text, dtype=ntl.float64)
++    time = ntl.where(row < text, ntl.cast(row, ntl.float64),
++                    ntl.where(row < audio_start, text64,
++                              ntl.where(row < video_start,
++                                        text64 + ntl.cast((row - audio_start) % audio, ntl.float64),
++                                        text64 + clock)))
++    spatial_row = ntl.where(row < audio_start, row - text, video_row) % rows_per_frame
++    h_index = ntl.cast(spatial_row // (width // patch_w), ntl.float64)
++    w_index = ntl.cast(spatial_row % (width // patch_w), ntl.float64)
++    area = ntl.full((), height * width, dtype=ntl.float64)
++    root = ntl.sqrt(area)
++    h_ratio = ntl.full((), height, dtype=ntl.float64) / root
++    w_ratio = ntl.full((), width, dtype=ntl.float64) / root
++    h_left = (1.0 - h_ratio) / 2.0
++    w_left = (1.0 - w_ratio) / 2.0
++    h_step = ((h_left + h_ratio) - h_left) / (height // patch_h)
++    w_step = ((w_left + w_ratio) - w_left) / (width // patch_w)
++    h_coord = (h_left + h_index * h_step) * 32.0
++    w_coord = (w_left + w_index * w_step) * 32.0
++    audio_w_index = ntl.where(row - audio_start < audio, 0, width // patch_w - 1)
++    audio_w = (w_left + ntl.cast(audio_w_index, ntl.float64) * w_step) * 32.0
++    is_video = (row >= text) & ((row < audio_start) | (row >= video_start))
++    h_coord = ntl.where(is_video, h_coord, 0.0)
++    w_coord = ntl.where(is_video, w_coord,
++                        ntl.where(row >= audio_start, audio_w, 0.0))
++    output = ntl.where(axis[None, :] == 0, time[:, None],
++                       ntl.where(axis[None, :] == 1, h_coord[:, None], w_coord[:, None]))
++
++
++def premake(text, frames, height, width, patch_h, patch_w, audio, channels, anchors):
++    values = (text, frames, height, width, patch_h, patch_w, audio, channels, anchors)
++    tensors = (nt.Tensor(2, dtype=nt.float64),) + tuple(
++        nt.Tensor(0, constexpr=True, value=value) for value in values)
++    return arrangement, application, tensors
+diff --git a/src/infiniop/ops/vae_support/ninetoothed/random.py b/src/infiniop/ops/vae_support/ninetoothed/random.py
+new file mode 100644
+index 00000000..a5261d54
+--- /dev/null
++++ b/src/infiniop/ops/vae_support/ninetoothed/random.py
+@@ -0,0 +1,99 @@
++"""MT19937 stream and normal transform expressed through NineToothed.
++
++The host bridge only serializes the released CPU generator state. Integer
++recurrence, tempering, uniform conversion and Box-Muller run on the device.
++"""
++import functools
++
++import ninetoothed as nt
++import ninetoothed.language as ntl
++from ninetoothed.language import libdevice
++
++
++def _serial(tensor):
++    result = tensor.tile((1,)).tile((-1,))
++    result.dtype.dtype = result.dtype.dtype.squeeze(0)
++    return result
++
++
++def stream_arrangement(state, output, initial_index, initial_twist):
++    return _serial(state), _serial(output), initial_index, initial_twist
++
++
++def stream_application(state, output, initial_index, initial_twist):
++    cursor = initial_index
++    for position in range(output.source.shape[0]):
++        if cursor == 624 or (position == 0 and initial_twist):
++            for index in range(624):
++                first = state[index]
++                second = state[(index + 1) % 624]
++                bits = (first & 2147483648) | (second & 2147483647)
++                distant = state[(index + 397) % 624]
++                state[index] = distant ^ (bits >> 1) ^ ntl.where(
++                    (second & 1) != 0, 2567483615, 0)
++            cursor = 0
++        value = state[cursor]
++        value = value ^ (value >> 11)
++        value = value ^ ((value << 7) & 2636928640)
++        value = value ^ ((value << 15) & 4022730752)
++        value = value ^ (value >> 18)
++        output[position] = value
++        cursor += 1
++
++
++def premake_stream(initial_index, initial_twist):
++    return stream_arrangement, stream_application, (
++        nt.Tensor(shape=(624,), dtype=nt.uint32),
++        nt.Tensor(1, dtype=nt.uint32),
++        nt.Tensor(0, constexpr=True, value=initial_index),
++        nt.Tensor(0, constexpr=True, value=initial_twist),
++    )
++
++
++def normal_arrangement(raw, output, count, digits):
++    # A complete raw stream is available to each output tile. Dynamic indexing
++    # selects paired uniforms without creating a third-party RNG dependency.
++    arranged = _serial(raw).expand((output.tile((128,)).shape[0],))
++    return arranged, output.tile((128,)), count, digits
++
++
++def normal_application(raw, output, count, digits):
++    index = output.offsets(-1)
++    group = index // 16 * 16
++    slot = index % 16
++    if count % 16 != 0:
++        final = index >= count - 16
++        group = ntl.where(final, count, group)
++        slot = ntl.where(final, index - (count - 16), slot)
++    paired = slot % 8
++    first = raw[group + paired]
++    second = raw[group + paired + 8]
++    u1 = ntl.cast(first & ((1 << digits) - 1), ntl.float32) * (1.0 / (1 << digits))
++    u2 = ntl.cast(second & ((1 << digits) - 1), ntl.float32) * (1.0 / (1 << digits))
++    if digits == 24:
++        radius = ntl.sqrt(-2.0 * ntl.log(1.0 - u1))
++        theta = 6.2831854820251465 * u2
++        cosine = ntl.cos(theta)
++        sine = ntl.sin(theta)
++        output = radius * ntl.where(slot < 8, cosine, sine)
++    else:
++        # The released CPU low-precision normal_fill stores each scalar
++        # intermediate in scalar_t; retain those rounding boundaries.
++        complement = ntl.cast(1.0 - u1, output.dtype)
++        logarithm = ntl.cast(libdevice.log(ntl.cast(complement, ntl.float32)), output.dtype)
++        radius = ntl.cast(libdevice.sqrt(-2.0 * ntl.cast(logarithm, ntl.float32)), output.dtype)
++        theta_wide = 6.283185307179586 * ntl.cast(u2, ntl.float64)
++        theta = ntl.cast(ntl.cast(theta_wide, ntl.float32), output.dtype)
++        cosine = ntl.cast(libdevice.cos(ntl.cast(theta, ntl.float32)), output.dtype)
++        sine = ntl.cast(libdevice.sin(ntl.cast(theta, ntl.float32)), output.dtype)
++        output = ntl.cast(radius, ntl.float32) * ntl.cast(
++            ntl.where(slot < 8, cosine, sine), ntl.float32)
++
++
++def premake_normal(count, dtype):
++    digits = {nt.float32: 24, nt.float16: 11, nt.bfloat16: 8}[dtype]
++    return normal_arrangement, normal_application, (
++        nt.Tensor(1, dtype=nt.uint32), nt.Tensor(1, dtype=dtype),
++        nt.Tensor(0, constexpr=True, value=count),
++        nt.Tensor(0, constexpr=True, value=digits),
++    )
+diff --git a/src/infiniop/ops/vae_support/ninetoothed/support.py b/src/infiniop/ops/vae_support/ninetoothed/support.py
+new file mode 100644
+index 00000000..d8ac33e1
+--- /dev/null
++++ b/src/infiniop/ops/vae_support/ninetoothed/support.py
+@@ -0,0 +1,60 @@
++"""NineToothed VAE conversion, padding and weight norm candidates."""
++import functools
++import ninetoothed as nt
++import ninetoothed.language as ntl
++from ninetoothed import Symbol
++from ntops.kernels.element_wise import arrangement as elementwise
++from ntops.kernels.reduction import arrangement as reduction
++def pointwise(input,other,output,operation,lower,upper):
++ x=ntl.cast(input,ntl.float32);y=ntl.cast(other,ntl.float32)
++ if operation==0:output=input
++ elif operation==1:output=x+y
++ elif operation==2:output=x*y
++ elif operation==3:output=x-y
++ elif operation==4:output=x/y
++ elif operation==5:output=y-x
++ elif operation==6:output=ntl.exp(x)
++ elif operation==7:output=ntl.sin(x)
++ elif operation==8:output=ntl.cos(x)
++ elif operation==9:output=-x
++ elif operation==10:output=x*ntl.sigmoid(x)
++ elif operation==11:output=x*x
++ elif operation==12:output=1.0/x
++ elif operation==13:output=ntl.minimum(ntl.maximum(x,lower),upper)
++def premake_pointwise(ndim,operation,input_dtype=None,other_dtype=None,output_dtype=None,lower=-float('inf'),upper=float('inf')):
++ if not 0<=operation<=13:raise ValueError('Unknown VAE pointwise operation')
++ tensors=(nt.Tensor(ndim,dtype=input_dtype),nt.Tensor(ndim,dtype=other_dtype),nt.Tensor(ndim,dtype=output_dtype),nt.Tensor(0,constexpr=True,value=operation),nt.Tensor(0,constexpr=True,value=lower),nt.Tensor(0,constexpr=True,value=upper))
++ return functools.partial(elementwise,block_size=512),pointwise,tensors
++def padding_arrangement(input,output,*,padding,mode):
++ if mode=='constant':padded=input.pad(padding)
++ else:
++  input._inputs.append([])
++  def offsets(indices):
++   mapped=[]
++   for index,size,(before,after) in zip(indices,input.shape,padding):
++    if before==0 and after==0:mapped.append(index);continue
++    index=index-before
++    if mode=='replicate':mapped.append(ntl.call('minimum',ntl.call('maximum',index,0),size-1))
++    else:
++     period=2*(size-1);folded=(index+period)%period;mapped.append(ntl.call('minimum',folded,period-folded))
++   return (tuple(mapped),)
++  padded=nt.Tensor(shape=tuple(size+sum(p) for size,p in zip(input.shape,padding)),dtype=input.dtype,source=input.source,target_dims=input.target_dims,_offsets=offsets,_outputs=[input._inputs[0]])
++  input._levels.append([padded])
++ return elementwise(padded,output,block_size=512)
++def copy_application(input,output):output=input
++def premake_padding(ndim,padding,mode,dtype):
++ if mode not in ('constant','reflect','replicate') or len(padding)!=ndim:raise ValueError('Unsupported padding')
++ return functools.partial(padding_arrangement,padding=padding,mode=mode),copy_application,(nt.Tensor(ndim,dtype=dtype,other=0),nt.Tensor(ndim,dtype=dtype))
++def weight_norm_arrangement(input,gain,output,*,dim,block_size):
++ expanded=gain.expand(tuple(-1 if i==dim else size for i,size in enumerate(input.shape)))
++ return reduction(input,expanded,output,dim=tuple(i for i in range(input.ndim) if i!=dim),block_size=block_size)
++def weight_norm_application(input,gain,output):
++ squares=ntl.zeros(input.dtype.shape,dtype=ntl.float32)
++ for block in range(input.shape[0]):
++  x=ntl.cast(input[block],ntl.float32);squares+=x*x
++ inverse_norm=ntl.rsqrt(ntl.sum(squares,0))
++ for block in range(input.shape[0]):output[block]=ntl.cast(input[block],ntl.float32)*gain[block]*inverse_norm
++def premake_weight_norm(ndim,dim=0,dtype=None):
++ if not 0<=dim<ndim or ndim<2:raise ValueError('Invalid retained dimension')
++ tensors=(nt.Tensor(ndim,dtype=dtype,other=0),nt.Tensor(ndim,dtype=dtype),nt.Tensor(ndim,dtype=dtype))
++ return functools.partial(weight_norm_arrangement,dim=dim,block_size=512),weight_norm_application,tensors
+diff --git a/xmake.lua b/xmake.lua
+index 56841028..d782bc5c 100644
+--- a/xmake.lua
++++ b/xmake.lua
+@@ -1,6 +1,7 @@
+ add_rules("mode.debug", "mode.release")
+-add_requires("boost", {configs = {stacktrace = true}})
+-add_requires("pybind11")
++if is_mode("debug") then
++    add_requires("boost", {configs = {stacktrace = true}})
++end
+ 
+ -- Define color codes
+ local GREEN = '\27[0;32m'
+@@ -12,10 +13,13 @@ if not PYTHON or PYTHON == "" then
+     PYTHON = is_host("windows") and "python" or "python3"
+ end
+ 
++local PYTORCH_INCLUDE_DIR = os.getenv("PYTORCH_INCLUDE_DIR") or "/usr/local/lib/python3.11/site-packages/torch/include"
++
+ set_encodings("utf-8")
+ 
+ add_includedirs("include")
+ add_includedirs("third_party/spdlog/include")
++add_includedirs(PYTORCH_INCLUDE_DIR)
+ 
+ if is_mode("debug") then
+     add_defines("DEBUG_MODE")
+@@ -855,7 +859,6 @@ target("infinicore_cpp_api")
+     -- pybind11/embed.h for mha_kvcache branch
+     if has_config("moore-gpu") and has_config("aten") and has_config("flash-attn") then
+         add_defines("ENABLE_MOORE_MATE_FLASH_ATTN")
+-        add_packages("pybind11")
+     end
+ 
+     before_build(function (target)
+@@ -1054,7 +1057,7 @@ target("infinicore_cpp_api")
+         -- Hygon links against a prebuilt flash-attn extension with a different ABI.
+         -- Keep the platform-specific implementation under each op's hygon/ folder.
+         add_files("src/infinicore/adaptor/flash_attn/hygon/*.cc")
+-    else
++    elseif not (has_config("hygon-dcu") and has_config("ninetoothed")) then
+         remove_files("src/infinicore/ops/*/hygon/*.cc")
+     end
+     if has_config("infiniops") and not has_config("nv-gpu")
+@@ -1086,7 +1089,6 @@ target("_infinicore")
+ 
+     set_default(false)
+     add_rules("python.library", {soabi = true})
+-    add_packages("pybind11")
+     set_languages("cxx17")
+ 
+     add_deps("infinicore_cpp_api")
+diff --git a/xmake/hygon.lua b/xmake/hygon.lua
+index ba06ae97..b5f5136c 100644
+--- a/xmake/hygon.lua
++++ b/xmake/hygon.lua
+@@ -68,8 +68,7 @@ toolchain("hygon.toolchain")
+ toolchain_end()
+ 
+ rule("hygon.env")
+-    -- Fix the deprecated warning by using add_orders
+-    add_orders("cuda.env", "hygon.env")
++    add_deps("cuda.env", {order = true})
+     after_load(function (target)
+         -- This logic to remove CUDA-specific libs is correct and can remain
+         local old = target:get("syslinks") or {}
+@@ -289,7 +288,6 @@ target("infinicore_cpp_api")
+         add_defines("ENABLE_ATEN")
+         if FLASH_ATTN_ROOT and FLASH_ATTN_ROOT ~= "" then
+             add_defines("ENABLE_FLASH_ATTN")
+-            add_packages("pybind11")
+         end
+     end
+ 

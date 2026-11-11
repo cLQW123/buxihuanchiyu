@@ -1,0 +1,31 @@
+{
+  "environment": {
+    "python": "3.11.9 (main, Apr  5 2026, 19:32:29) [GCC 11.4.0]",
+    "packages": {
+      "torch": "2.9.0+das.opt1.dtk2604",
+      "triton": "3.5.1+das.opt1.dtk2604.torch290",
+      "diffusers": "0.40.0.dev0",
+      "transformers": "5.14.1",
+      "numpy": "1.26.4",
+      "torchvision": "0.24.0+cpu",
+      "accelerate": "1.14.0",
+      "huggingface-hub": "1.28.0",
+      "safetensors": "0.8.0",
+      "tokenizers": "0.22.2",
+      "av": "18.1.0",
+      "imageio": "2.37.4",
+      "scipy": "1.17.1",
+      "scikit-image": "0.26.0",
+      "einops": "0.8.2",
+      "janus": "2.0.0",
+      "xxhash": "4.0.2",
+      "ntops": "source or system package without metadata"
+    }
+  },
+  "ntops": {
+    "repository": "https://github.com/InfiniTensor/ntops",
+    "commit": "82cba6cf2200919b5d12c86adbea60cbfb516040",
+    "python_source_sha256": "aa9f9d9d4583855e2144edc37724b29f14381c1e5c977c690ecdccb6388127ef"
+  },
+  "scope": "vendor Torch and Triton remain the competition builds; other dependencies are competition offline packages"
+}
