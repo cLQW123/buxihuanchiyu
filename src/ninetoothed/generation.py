@@ -10,7 +10,6 @@ import pathlib
 import subprocess
 import textwrap
 
-import sympy
 import triton
 from triton.language.extra import libdevice
 
@@ -370,6 +369,18 @@ class CodeGenerator(ast.NodeTransformer):
         return isinstance(node, ast.Name) and node.id in self._context
 
     def _generate_autotune(self, params, meta):
+        # With no meta-parameters and one compiler configuration, the result
+        # is always a single candidate, for which no autotune decorator is
+        # emitted. Avoid loading SymPy for fixed AOT configurations.
+        if (
+            not meta
+            and not isinstance(self._num_warps, collections.abc.Iterable)
+            and not isinstance(self._num_stages, collections.abc.Iterable)
+        ):
+            return None
+
+        import sympy
+
         inequalities = True
 
         for arg in self._args:
@@ -641,6 +652,29 @@ class CodeGenerator(ast.NodeTransformer):
 
         pointers, mask = self._generate_pointers_and_mask(tensor, indices)
         other = type(self)._generate_other(tensor)
+
+        def depends_on_block(node):
+            if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mult):
+                if Symbol(node.left) == 0 or Symbol(node.right) == 0:
+                    return False
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "arange"):
+                return True
+            return any(depends_on_block(child) for child in ast.iter_child_nodes(node))
+
+        if (tensor is not tensor.source and tensor.innermost().ndim and
+            not depends_on_block(pointers.node) and depends_on_block(mask.node)):
+            # Expanded storage may have a scalar pointer but a vector mask.
+            # Match pointer rank to the logical tile before the masked load.
+            # A scalar mask needs no broadcast: preserving scalar loads also
+            # preserves values used as dynamic loop bounds (e.g. KV length).
+            # Reuse the exact arange endpoints used for the tile indices.
+            tile_indices = type(self)._generate_innermost_indices(tensor)
+            shape = ast.Tuple(
+                elts=[copy.deepcopy(index.node.value.args[1]) for index in tile_indices],
+                ctx=ast.Load(),
+            )
+            pointers = call("broadcast_to", pointers, Symbol(shape))
 
         return call("load", pointers, mask=mask, other=other).node
 

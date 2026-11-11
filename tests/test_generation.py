@@ -5,6 +5,7 @@ import pytest
 import torch
 
 import ninetoothed
+import ninetoothed.language as ntl
 import tests.test_matmul as matmul
 from ninetoothed import Tensor
 from tests.utils import get_available_devices
@@ -149,3 +150,42 @@ def test_non_int_constexpr(size, device):
     kernel(input, other, output)
 
     assert output.shape == expected.shape and torch.allclose(output, expected)
+
+
+@pytest.mark.parametrize("device", get_available_devices())
+def test_expanded_scalar_load_as_loop_bound(device):
+    """An expanded length remains scalar when indexed for a runtime loop."""
+    def arrangement(input, length, output):
+        def arrange_values(tensor):
+            arranged = tensor.tile((1, 1, 32, -1))
+            arranged.dtype = arranged.dtype.squeeze((0, 1))
+            return arranged
+
+        input = arrange_values(input)
+        length = length.tile((1,)).unsqueeze(1).unsqueeze(2).unsqueeze(3)
+        length = length.expand((-1, *input.shape[1:]))
+        return input, length, arrange_values(output)
+
+    def application(input, length, output):
+        count = length[0]
+        accumulator = ntl.zeros(input.shape, dtype=ntl.float32)
+        for _ in range(count):
+            accumulator += input
+        output = accumulator
+
+    shape_options = (None, None, None, {"constexpr": True, "upper_bound": 128})
+    kernel = ninetoothed.make(
+        arrangement,
+        application,
+        (Tensor(4, dtype=ninetoothed.float32, other=0, shape_options=shape_options),
+         Tensor(1, dtype=ninetoothed.int32),
+         Tensor(4, dtype=ninetoothed.float32, shape_options=shape_options)),
+        num_warps=4,
+        num_stages=1,
+        max_num_configs=1,
+    )
+    input = torch.randn((1, 2, 37, 64), device=device)
+    length = torch.tensor([3], dtype=torch.int32, device=device)
+    output = torch.empty_like(input)
+    kernel(input, length, output)
+    torch.testing.assert_close(output, input + input + input)

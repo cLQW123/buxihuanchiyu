@@ -1,5 +1,6 @@
 import ast
 import ctypes
+import os
 import pathlib
 import re
 import shutil
@@ -13,6 +14,8 @@ import ninetoothed.naming as naming
 from ninetoothed.generation import CACHE_DIR, CodeGenerator
 from ninetoothed.tensor import Tensor
 from ninetoothed.utils import calculate_default_configs
+
+# Modified for Hygon/HIP AOT integration in the Songshan Cup project.
 
 
 def aot(
@@ -81,6 +84,39 @@ def _aot(func, caller, kernel_name, num_warps, num_stages):
     variant_specs = _enumerate_variant_specs(
         launch_arg_names, tensors, _find_tensor_by_source_name
     )
+    variant_profile = os.getenv("NINETOOTHED_AOT_VARIANT_PROFILE", "full")
+    if variant_profile in ("fl2va", "generic"):
+        generic_int32 = next(
+            (
+                spec
+                for spec in variant_specs
+                if spec[1] == ()
+                and spec[2] == ()
+                and spec[3] == ninetoothed.dtype.int32
+                and spec[4] == ninetoothed.dtype.int32
+            ),
+            None,
+        )
+        int64_fallback = next(
+            (
+                spec
+                for spec in reversed(variant_specs)
+                if spec[3] == ninetoothed.dtype.int64
+                and spec[4] == ninetoothed.dtype.int64
+            ),
+            None,
+        )
+        if not variant_specs or generic_int32 is None or int64_fallback is None:
+            raise RuntimeError("AOT variant profile requires standard fallback variants")
+
+        if variant_profile == "fl2va":
+            # Keep the contiguous fast path plus generic and overflow fallbacks.
+            variant_specs = [variant_specs[0], generic_int32, int64_fallback]
+        else:
+            variant_specs = [generic_int32, int64_fallback]
+    elif variant_profile != "full":
+        raise ValueError(f"Unsupported NINETOOTHED_AOT_VARIANT_PROFILE: {variant_profile}")
+
     _, tensor_ndims, _ = _per_tensor_dim_options(
         launch_arg_names, tensors, _find_tensor_by_source_name
     )
@@ -265,7 +301,10 @@ def _build_variant(
                 constexpr_param_indices.append(len(param_types) - 1)
                 constexpr_strides.append((source_name, dim_index))
             else:
-                param_types.append(f"{stride_type}:16")
+                # A dynamic stride may be 1, odd, or negative. The dispatcher
+                # does not prove stride divisibility, so attaching :16 here
+                # miscompiles generic layouts (including contiguous tensors).
+                param_types.append(stride_type)
         else:
             source_name = param
             tensor = find_tensor(tensors, source_name)
@@ -290,8 +329,25 @@ def _build_variant(
         source_file, kernel_name, signature, grid, num_warps, num_stages
     )
 
-    c_source_file_name = f"{kernel_name}.{signature_hash}.c"
-    c_source_file = output_contents[c_source_file_name]
+    source_prefix = f"{kernel_name}.{signature_hash}."
+    source_file_names = [
+        name
+        for name in output_contents
+        if name.startswith(source_prefix) and name.endswith((".c", ".cpp"))
+    ]
+    if len(source_file_names) != 1:
+        raise RuntimeError(
+            f"Expected one Triton launcher source for `{kernel_name}`; "
+            f"found {source_file_names}."
+        )
+
+    source_file_name = source_file_names[0]
+    source_file = output_contents[source_file_name]
+    is_hip = "#include <hip/hip_runtime.h>" in source_file
+    if source_file_name.endswith(".cpp") and not is_hip:
+        raise RuntimeError(
+            f"Unsupported Triton AOT source for `{kernel_name}`: {source_file_name}"
+        )
 
     c_header_file_name = f"{kernel_name}.{signature_hash}.h"
     c_header_file = output_contents[c_header_file_name]
@@ -304,40 +360,124 @@ def _build_variant(
     unparser = _Unparser(c_param_type_strings, constexpr_strides)
 
     launch_func_unparsed = unparser.unparse(launch_func)
-    launch_func_unparsed_lines = launch_func_unparsed.splitlines()
-    launch_func_unparsed_lines.insert(1, f"{_INDENTATION}cuCtxGetId(NULL, &ctx_id);\n")
-    launch_func_unparsed_lines.insert(1, f"{_INDENTATION}unsigned long long ctx_id;")
-    launch_func_unparsed = "\n".join(launch_func_unparsed_lines)
-    launch_func_unparsed = launch_func_unparsed.replace(
-        func.__name__, f"kernels_{variant_suffix}[ctx_id].{kernel_name_with_hash}"
-    )
+    if is_hip:
+        launch_func_unparsed_lines = launch_func_unparsed.splitlines()
+        launch_func_unparsed_lines[1:1] = [
+            f"{_INDENTATION}int device_id = 0;",
+            f"{_INDENTATION}hipError_t device_status = hipGetDevice(&device_id);",
+            f"{_INDENTATION}if (device_status != hipSuccess) "
+            "return static_cast<NineToothedResult>(device_status);",
+        ]
+        launch_func_unparsed = "\n".join(launch_func_unparsed_lines)
+        launch_func_unparsed = launch_func_unparsed.replace(
+            func.__name__,
+            f"kernels_{variant_suffix}[device_id].{kernel_name_with_hash}",
+        )
+        map_key_type = "int"
+    else:
+        launch_func_unparsed_lines = launch_func_unparsed.splitlines()
+        launch_func_unparsed_lines.insert(
+            1, f"{_INDENTATION}cuCtxGetId(NULL, &ctx_id);\n"
+        )
+        launch_func_unparsed_lines.insert(
+            1, f"{_INDENTATION}unsigned long long ctx_id;"
+        )
+        launch_func_unparsed = "\n".join(launch_func_unparsed_lines)
+        launch_func_unparsed = launch_func_unparsed.replace(
+            func.__name__,
+            f"kernels_{variant_suffix}[ctx_id].{kernel_name_with_hash}",
+        )
+        map_key_type = "unsigned long long"
+
     launch_func_unparsed = launch_func_unparsed.replace(
         f"launch_{kernel_name}(", f"launch_{kernel_name}_{variant_suffix}(", 1
     )
 
-    c_source_file = c_source_file.replace("<stdint.h>", f'"{_HEADER_PATH}"')
-    output_contents[c_source_file_name] = c_source_file
+    source_file = source_file.replace("<stdint.h>", f'"{_HEADER_PATH}"')
+    output_contents[source_file_name] = source_file
 
     output_contents.pop(c_header_file_name, None)
 
-    kernel_start = c_source_file.find("//")
-    kernel_end = len(c_source_file)
-    cpp_source_file = (
-        c_source_file[:kernel_start]
-        + f"namespace {kernel_name_with_hash} {{\n"
-        + "struct Kernel {\n"
-        + textwrap.indent(c_source_file[kernel_start:kernel_end], _INDENTATION)
-        + "};\n"
-        + textwrap.indent(c_source_file[kernel_end:], _INDENTATION)
-        + "}\n"
-        + f"\nstatic ninetoothed::ThreadSafeUnorderedMap<unsigned long long, {kernel_name_with_hash}::Kernel> kernels_{variant_suffix};\n"
-        + f'\nextern "C" {launch_func_unparsed}\n'
-    )
+    if is_hip:
+        cpp_source_file = _wrap_hip_source(
+            source_file,
+            kernel_name_with_hash,
+            variant_suffix,
+            map_key_type,
+            launch_func_unparsed,
+        )
+        output_contents[f"{kernel_name}.backend"] = "hip\n"
+    else:
+        map_declaration = (
+            f"\nstatic ninetoothed::ThreadSafeUnorderedMap<{map_key_type}, "
+            f"{kernel_name_with_hash}::Kernel> kernels_{variant_suffix};\n"
+        )
+        kernel_start = source_file.find("//")
+        kernel_end = len(source_file)
+        cpp_source_file = (
+            source_file[:kernel_start]
+            + f"namespace {kernel_name_with_hash} {{\n"
+            + "struct Kernel {\n"
+            + textwrap.indent(source_file[kernel_start:kernel_end], _INDENTATION)
+            + "};\n"
+            + textwrap.indent(source_file[kernel_end:], _INDENTATION)
+            + "}\n"
+            + map_declaration
+            + f'\nextern "C" {launch_func_unparsed}\n'
+        )
+        output_contents[f"{kernel_name}.backend"] = "cuda\n"
+
     cpp_source_file_name = f"{kernel_name}.{variant_suffix}.cpp"
     output_contents[cpp_source_file_name] = cpp_source_file
-    output_contents.pop(c_source_file_name)
+    output_contents.pop(source_file_name)
 
     return output_contents
+
+
+def _wrap_hip_source(
+    source, kernel_name_with_hash, variant_suffix, map_key_type, launch_func
+):
+    state_pattern = re.compile(
+        r"(?m)^[ \t]*(?:static[ \t]+)?(hipModule_t|hipFunction_t)[ \t]+"
+        r"([A-Za-z_]\w*)[ \t]*(?:=[ \t]*(?:nullptr|NULL))?[ \t]*;[ \t]*$"
+    )
+    states = state_pattern.findall(source)
+    if len(states) != 2 or {kind for kind, _ in states} != {
+        "hipModule_t",
+        "hipFunction_t",
+    }:
+        raise RuntimeError(
+            f"Expected HIP module and function state in `{kernel_name_with_hash}`; "
+            f"found {states}."
+        )
+
+    function_start = re.search(
+        r"(?m)^void\s+unload_[A-Za-z_]\w*\s*\(", source
+    )
+    if function_start is None:
+        raise RuntimeError(
+            f"Could not find HIP launcher functions for `{kernel_name_with_hash}`."
+        )
+
+    source_prefix = state_pattern.sub("", source[: function_start.start()])
+    source_functions = source[function_start.start() :]
+    state_fields = "\n".join(
+        f"{kind} {name} = nullptr;" for kind, name in states
+    )
+    kernel_body = f"{state_fields}\n{source_functions}"
+    map_declaration = (
+        f"\nstatic ninetoothed::ThreadSafeUnorderedMap<{map_key_type}, "
+        f"{kernel_name_with_hash}::Kernel> kernels_{variant_suffix};\n"
+    )
+
+    return (
+        source_prefix
+        + f"\nnamespace {kernel_name_with_hash} {{\nstruct Kernel {{\n"
+        + textwrap.indent(kernel_body, _INDENTATION)
+        + "\n};\n}\n"
+        + map_declaration
+        + f'\nextern "C" {launch_func}\n'
+    )
 
 
 def _enumerate_variant_specs(launch_arg_names, tensors, find_tensor):
@@ -760,7 +900,7 @@ def _compile(path, name, signature, grid, num_warps, num_stages):
         command = [
             "python",
             "-m",
-            "triton.tools.compile",
+            "ninetoothed._compile_triton",
             str(path),
             "--kernel-name",
             str(name),
@@ -778,14 +918,24 @@ def _compile(path, name, signature, grid, num_warps, num_stages):
 
         subprocess.run(command, check=True)
 
-        matching_files = list(output_dir.glob(f"{output_name}.*"))
+        matching_files = sorted(output_dir.glob(f"{output_name}.*"))
+        source_files = [
+            file for file in matching_files if file.suffix in (".c", ".cpp")
+        ]
+        if len(source_files) != 1:
+            raise RuntimeError(
+                f"Triton produced {len(source_files)} launcher sources for `{name}`: "
+                f"{[file.name for file in matching_files]}"
+            )
 
-        signature_hash = matching_files[0].name.split(".")[1]
+        signature_hash = source_files[0].name.split(".")[1]
 
         output_contents = {}
 
         for file in matching_files:
-            with file.open() as f:
+            if file.suffix not in (".c", ".cpp", ".h"):
+                continue
+            with file.open(encoding="utf-8") as f:
                 output_contents[file.name.replace(output_name, name)] = f.read()
 
     return signature_hash, output_contents
@@ -863,22 +1013,45 @@ def _load_launch_func(kernel_name, output_dir):
 
 
 def _compile_library(kernel_name, output_dir):
-    command = [
-        "nvcc",
-        "-shared",
-        "-arch",
-        "native",
-        "--threads",
-        "0",
-        "-Xcompiler",
-        "-fPIC",
-        # TODO: Remove the following 2 lines after the return value issue is resolved.
-        "-Xcompiler",
-        "-Wno-return-type",
-        "-lcuda",
-        "-o",
-        output_dir / f"{kernel_name}.so",
-    ] + list(output_dir.glob(f"{kernel_name}*.cpp"))
+    output_dir = pathlib.Path(output_dir)
+    backend_path = output_dir / f"{kernel_name}.backend"
+    backend = backend_path.read_text().strip() if backend_path.exists() else "cuda"
+    source_files = sorted(output_dir.glob(f"{kernel_name}*.cpp"))
+
+    if backend == "hip":
+        compiler = (
+            os.getenv("NINETOOTHED_HIPCC")
+            or os.getenv("HIPCC")
+            or "hipcc"
+        )
+        command = [
+            compiler,
+            "-shared",
+            "-fPIC",
+            "-std=c++17",
+            "-Wno-return-type",
+            # Repeated content-addressed HSACO symbols are shared by launch variants.
+            "-Wl,--allow-multiple-definition",
+            "-o",
+            output_dir / f"{kernel_name}.so",
+        ] + source_files
+    else:
+        command = [
+            "nvcc",
+            "-shared",
+            "-arch",
+            "native",
+            "--threads",
+            "0",
+            "-Xcompiler",
+            "-fPIC",
+            # TODO: Remove the following 2 lines after the return value issue is resolved.
+            "-Xcompiler",
+            "-Wno-return-type",
+            "-lcuda",
+            "-o",
+            output_dir / f"{kernel_name}.so",
+        ] + source_files
 
     subprocess.run(command, check=True)
 
