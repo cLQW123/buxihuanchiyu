@@ -24,7 +24,7 @@ for sgcup_path in "${sgcup_inherited_paths[@]}"; do
 done
 # An explicitly prepared official compiler dependency directory may contain
 # Triton when the competition Python environment does not install it globally.
-export PYTHONPATH="$sgcup_root/build/python:$sgcup_root/Projects/ninetoothed/src:$sgcup_root/Projects/ntops/src:$sgcup_root/Projects/InfiniCore/src:$sgcup_root/Projects/InfiniCore/python:$sgcup_root/Projects/InfiniLM/python${SGCUP_COMPILER_PYTHONPATH:+:$SGCUP_COMPILER_PYTHONPATH}${sgcup_dependency_paths:+:$sgcup_dependency_paths}"
+export PYTHONPATH="$sgcup_root/scripts:$sgcup_root/build/python:$sgcup_root/Projects/ninetoothed/src:$sgcup_root/Projects/ntops/src:$sgcup_root/Projects/InfiniCore/src:$sgcup_root/Projects/InfiniCore/python:$sgcup_root/Projects/InfiniLM/python${SGCUP_COMPILER_PYTHONPATH:+:$SGCUP_COMPILER_PYTHONPATH}${sgcup_dependency_paths:+:$sgcup_dependency_paths}"
 export LD_LIBRARY_PATH="$INFINI_ROOT/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export NINETOOTHED_HYGON_LLVM_COMPAT=1
 export INFINILM_HYGON_NINETOOTHED_FLASH=1

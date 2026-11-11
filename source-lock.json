@@ -26,8 +26,8 @@
       "base_commit": "82cba6cf2200919b5d12c86adbea60cbfb516040"
     }
   },
-  "source_manifest": "evidence/source-manifest-v320.json",
-  "source_manifest_status": "v320 exact source and package file hashes verified locally; full technical acceptance pending",
-  "source_manifest_aggregate_sha256": "2ad450d0447eeb48921abe178289f26f024bb7e3fb2c91fbebf3ef1df21b8f7f",
-  "source_manifest_file_count": 4562
+  "source_manifest": "evidence/source-manifest-v322.json",
+  "source_manifest_status": "v322 exact source and package file hashes verified locally; full technical acceptance pending",
+  "source_manifest_aggregate_sha256": "dce8c70877308b2243ee46833b526168c9f3f7773f5be623650c0af5137a0a87",
+  "source_manifest_file_count": 4563
 }

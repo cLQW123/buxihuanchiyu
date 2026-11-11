@@ -49,6 +49,20 @@ export SGCUP_COMPILER_PYTHONPATH="$ISOLATED_ROOT/build/competition-python"
 python scripts/prepare_compiler_dependency.py --triton-source "$COMPETITION_TRITON_SOURCE" \
     > outputs/reproduction/compiler-dependency.log 2>&1
 source scripts/env.sh
+python - <<'PY'
+import hashlib, json, os
+from pathlib import Path
+import sitecustomize
+root = Path(os.environ['SGCUP_ROOT']).resolve()
+module = Path(sitecustomize.__file__).resolve()
+assert module == root/'scripts/sitecustomize.py', module
+assert os.replace is sitecustomize._replace
+receipt = {'scope':'submitted host-file publication startup shim',
+           'path':str(module), 'sha256':hashlib.sha256(module.read_bytes()).hexdigest(),
+           'os_replace_wrapper_active':True}
+(root/'outputs/reproduction/startup-shim.json').write_text(json.dumps(receipt,indent=2))
+print('SUBMITTED_STARTUP_SHIM_ACTIVE',json.dumps(receipt),flush=True)
+PY
 run_stage() {
     local stage=$1
     shift
@@ -71,6 +85,14 @@ PY
 run_stage environment python scripts/check_environment.py
 run_stage build bash scripts/build.sh
 source scripts/env.sh
+python - <<'PY'
+import os
+from pathlib import Path
+import sitecustomize
+assert Path(sitecustomize.__file__).resolve() == Path(os.environ['SGCUP_ROOT']).resolve()/'scripts/sitecustomize.py'
+assert os.replace is sitecustomize._replace
+print('SUBMITTED_STARTUP_SHIM_STILL_ACTIVE_BEFORE_GENERATION',flush=True)
+PY
 run_stage runtime-policy python scripts/validate_runtime_policy.py --output outputs/reproduction/runtime-policy.json
 export SGCUP_RUN_EVIDENCE="$ISOLATED_ROOT/outputs/reproduction/seed42"
 run_stage generation bash scripts/run.sh fl2va --model-path "$MODEL_PATH" --first-frame "$FIRST_FRAME" \

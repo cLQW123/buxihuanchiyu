@@ -1,7 +1,8 @@
 # Final publication and exact-commit reproduction
 
 These commands are prepared only. Do not publish until the complete technical
-acceptance evidence has been checked by the root agent. Main remains uncommitted.
+acceptance evidence has been checked by the root agent. Local preparation commits
+do not establish technical acceptance or publication.
 
 ## Freeze the final source state
 
@@ -81,3 +82,10 @@ It exposes only the original official `triton`, `triton.libs` and matching
 distribution metadata through three links in this fresh build's
 `build/competition-python`. It does not add their old parent `runtime/` directory
 to `PYTHONPATH`, and does not copy or modify the official compiler package.
+
+The submitted `scripts/sitecustomize.py` provides host-only cross-device file
+publication for the AFS compiler cache. `source scripts/env.sh` puts only this
+submission's scripts directory on Python's startup path, before build and run.
+The isolated runner verifies the exact startup module and `os.replace` wrapper
+before building and again before generation; it does not load the old runtime's
+numerical patches.
