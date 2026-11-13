@@ -38,3 +38,20 @@ def premake(count, start=1.0, end=0.0, wide_step=True):
                nt.Tensor(0, constexpr=True, value=start),
                nt.Tensor(0, constexpr=True, value=end))
     return arrangement, application_f64 if wide_step else application_f32, tensors
+
+
+def range_arrangement(output, start, step):
+    return output.tile((128,)), start, step
+
+
+def range_application(output, start, step):
+    index = ntl.cast(output.offsets(-1), ntl.float32)
+    output = start + index * step
+
+
+def premake_arange(dtype=nt.float32):
+    return range_arrangement, range_application, (
+        nt.Tensor(1, dtype=dtype),
+        nt.Tensor(0, dtype=nt.float32),
+        nt.Tensor(0, dtype=nt.float32),
+    )
