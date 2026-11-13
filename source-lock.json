@@ -3,14 +3,14 @@
   "projects": {
     "InfiniCore": {
       "url": "https://github.com/cLQW123/buxihuanchiyu",
-      "branch": "sgcup-infinicore-20261111",
-      "commit": "d0bd78d910588d2ed040a95d5b49829cff0bb958",
+      "branch": "sgcup-infinicore-20261114",
+      "commit": "4a89f7f0c20b24e3edf44fc249156341fcf0a1b3",
       "base_commit": "f32e2fbb2a9b2ca912b5711f4f3836c403196a74"
     },
     "InfiniLM": {
       "url": "https://github.com/cLQW123/buxihuanchiyu",
-      "branch": "sgcup-infinilm-20261111",
-      "commit": "a7acead148aa508bfe33048c15f4c9a2b07bfc48",
+      "branch": "sgcup-infinilm-20261114",
+      "commit": "71a34004bf93ed11a6fc3ec060b6543021dbe7aa",
       "base_commit": "65deb91f840ebaef752d028fad2f3217ce0950f4"
     },
     "ninetoothed": {
@@ -27,7 +27,7 @@
     }
   },
   "source_manifest": "evidence/source-manifest-20261113-offline.json",
-  "source_manifest_sha256": "047d47c65fe404c01089465744f6aeb2c8adbf057d624b0f982cb085fcb0201d",
-  "source_manifest_file_count": 6201,
+  "source_manifest_sha256": "13bd1b2dbafadfc0d1848028a8615555da8b405579c654046c76d3586d9ac60a",
+  "source_manifest_file_count": 6206,
   "source_manifest_scope": "tracked implementation, dependency locks and documentation; source-lock and evidence excluded to avoid recursive hashes"
 }

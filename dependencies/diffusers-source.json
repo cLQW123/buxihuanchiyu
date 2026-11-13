@@ -6,5 +6,14 @@
   "wheel_file": "diffusers-0.40.0.dev0-py3-none-any.whl",
   "wheel_sha256": "759d317f668d7b57a6d4470da04cf875fabeee58cca19b01909d08c3a16f21e4",
   "python_files_verified_byte_identical_to_official_source": 1022,
-  "runtime_success_established": false
+  "runtime_success_established": true,
+  "verified_official_entry_sha256": "ca54a18a73a7d760d644ca4eb2c3b20678f88dfdbcfa26a62dcd3de617b31af4",
+  "verified_generation_configuration": {
+    "task": "fl2va",
+    "frames": 124,
+    "scheduler_points": 50,
+    "seed": 42,
+    "gpus": 8,
+    "entry_exit": 0
+  }
 }

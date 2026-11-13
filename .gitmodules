@@ -1,11 +1,11 @@
 [submodule "Projects/InfiniCore"]
 	path = Projects/InfiniCore
 	url = https://github.com/cLQW123/buxihuanchiyu.git
-	branch = sgcup-infinicore-20261111
+	branch = sgcup-infinicore-20261114
 [submodule "Projects/InfiniLM"]
 	path = Projects/InfiniLM
 	url = https://github.com/cLQW123/buxihuanchiyu.git
-	branch = sgcup-infinilm-20261111
+	branch = sgcup-infinilm-20261114
 [submodule "Projects/ninetoothed"]
 	path = Projects/ninetoothed
 	url = https://github.com/cLQW123/buxihuanchiyu.git

@@ -20,3 +20,4 @@ for name, record in lock['projects'].items():
     assert actual == record['commit'], (name, actual, record['commit'])
 print('PINNED_SOURCE_CHECKOUT_READY')
 PY
+python "$sgcup_root/scripts/write_checkout_provenance.py"

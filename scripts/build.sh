@@ -41,4 +41,5 @@ python "$sgcup_root/scripts/build_python_core.py"
 python "$sgcup_root/scripts/validate_aot.py"
 source "$sgcup_root/scripts/env.sh"
 python "$sgcup_root/scripts/validate_runtime.py"
+python "$sgcup_root/scripts/validate_boundaries.py"
 printf '%s\n' SGCUP_CLEAN_BUILD_COMPLETED

@@ -1,5 +1,7 @@
 build/
 outputs/
+inputs/
+SOURCE_PROVENANCE.json
 __pycache__/
 *.pyc
 .DS_Store

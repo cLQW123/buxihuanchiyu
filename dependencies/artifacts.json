@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "repository": "cLQW123/buxihuanchiyu",
+  "release_tag": "offline-runtime-20261114",
+  "artifacts": [
+    {
+      "file": "sgcup-python-wheels-20261113-official040.tar",
+      "bytes": 888903680,
+      "sha256": "370dddba251e02da963424899811f38f1d41795237a13492580a05edb1599cd7",
+      "extract_to": "."
+    },
+    {
+      "file": "sgcup-vendor-triton-3.5.1-dtk2604.tar.gz",
+      "bytes": 111739914,
+      "sha256": "9f3428ddb035543c79d49db1cd88cb4d19a66cdf43d659bacc88c3f6f274bcd8",
+      "extract_to": "."
+    }
+  ],
+  "base_environment": "Competition Linux x86_64, Python 3.11, vendor Torch 2.9.0+das.opt1.dtk2604, DTK, driver, GCC and xmake are provided by the competition platform."
+}

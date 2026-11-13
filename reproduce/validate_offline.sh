@@ -5,8 +5,6 @@ task_repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$task_repo"
 : "${MODEL_PATH:?Set the original competition diffusers model path}"
 : "${FIRST_FRAME:?Set the unchanged competition first-frame path}"
-: "${REFERENCE_VIDEO:?Set the reference video path}"
-: "${REFERENCE_PROVENANCE:?Set the reference provenance JSON path}"
 source build/activate.sh
 task_output="$task_repo/outputs/offline-validation"
 mkdir -p "$task_output"
@@ -20,31 +18,13 @@ import hashlib, json, os
 from pathlib import Path
 root=Path(os.environ['SGCUP_ROOT']).resolve()
 output=Path(os.environ['SGCUP_VALIDATION_OUTPUT'])
-reference=Path(os.environ['REFERENCE_VIDEO']).resolve(strict=True)
-source=Path(os.environ['REFERENCE_PROVENANCE']).resolve(strict=True)
-record=json.loads(source.read_text())
-digest=hashlib.file_digest(reference.open('rb'),'sha256').hexdigest()
-expected=record.get('video_sha256',record.get('reference_video_sha256'))
-assert digest == expected, 'Reference video differs from its provenance record'
-assert record.get('kind') in ('organizer-standard', 'official-unmodified-execution', 'compatibility-reference'), 'Explicit reference kind required'
-assert record.get('description'), 'Reference source description required'
-if record['kind']=='official-unmodified-execution':
-    assert record.get('reference_is_unmodified_execution') is True
-    assert record.get('full_generation_completed') is True
-    assert record.get('entry_modifications')==[] and record.get('numerical_execution_wrappers')==[]
 proof=json.loads((root/'SOURCE_PROVENANCE.json').read_text())
 for relative, expected in proof['files'].items():
     assert hashlib.file_digest((root/relative).open('rb'),'sha256').hexdigest()==expected, relative
 assert not (Path.home()/'.ninetoothed').resolve() == Path(os.environ['NINETOOTHED_CACHE_DIR']).resolve()
 assert Path(os.environ['TRITON_CACHE_DIR']).resolve().is_relative_to(root/'build')
 assert Path(os.environ['NINETOOTHED_CACHE_DIR']).resolve().is_relative_to(root/'build')
-receipt={'source':str(source),'video':str(reference),'video_sha256':digest,
-         'kind':record['kind'],'description':record['description'],
-         'formal_reference_accepted':record['kind']=='organizer-standard',
-         'reference_code_unchanged':record['kind'] in ('organizer-standard','official-unmodified-execution'),
-         'provenance':record}
-(output/'reference.json').write_text(json.dumps(receipt,indent=2)+'\n')
-print('SOURCE_AND_REFERENCE_PROVENANCE_RECORDED',receipt['kind'],len(proof['files']),flush=True)
+print('FRESH_SOURCE_AND_CACHE_ROOTS_VERIFIED',len(proof['files']),flush=True)
 PY
 run_stage() {
     local task_stage=$1
@@ -77,6 +57,43 @@ PY
 run_stage environment python scripts/check_environment.py
 run_stage build bash scripts/build.sh
 run_stage runtime-policy python scripts/validate_runtime_policy.py --output "$task_output/runtime-policy.json"
+if test -z "${REFERENCE_VIDEO:-}" && test -z "${REFERENCE_PROVENANCE:-}"; then
+    export SGCUP_NEW_REFERENCE=1
+    run_stage reference python scripts/create_reference.py --model-path "$MODEL_PATH" \
+        --first-frame "$FIRST_FRAME" --output-dir "$task_output/official-reference"
+    export REFERENCE_VIDEO="$task_output/official-reference/reference.mp4"
+    export REFERENCE_PROVENANCE="$task_output/official-reference/reference-provenance.json"
+else
+    : "${REFERENCE_VIDEO:?Both reference video and provenance must be supplied together}"
+    : "${REFERENCE_PROVENANCE:?Both reference video and provenance must be supplied together}"
+    export SGCUP_NEW_REFERENCE=0
+fi
+python - <<'PYREF'
+import hashlib, json, os
+from pathlib import Path
+root=Path(os.environ['SGCUP_ROOT']).resolve()
+output=Path(os.environ['SGCUP_VALIDATION_OUTPUT'])
+reference=Path(os.environ['REFERENCE_VIDEO']).resolve(strict=True)
+source=Path(os.environ['REFERENCE_PROVENANCE']).resolve(strict=True)
+record=json.loads(source.read_text())
+digest=hashlib.file_digest(reference.open('rb'),'sha256').hexdigest()
+expected=record.get('video_sha256',record.get('reference_video_sha256'))
+assert digest == expected, 'Reference video differs from its provenance record'
+assert record.get('kind') in ('organizer-standard', 'official-unmodified-execution', 'compatibility-reference'), 'Explicit reference kind required'
+assert record.get('description'), 'Reference source description required'
+assert record.get('first_frame_sha256') == hashlib.file_digest(Path(os.environ['FIRST_FRAME']).open('rb'),'sha256').hexdigest(), 'Reference input differs from this run'
+if record['kind']=='official-unmodified-execution':
+    assert record.get('reference_is_unmodified_execution') is True
+    assert record.get('full_generation_completed') is True
+    assert record.get('entry_modifications')==[] and record.get('numerical_execution_wrappers')==[]
+receipt={'source':str(source),'video':str(reference),'video_sha256':digest,
+         'kind':record['kind'],'description':record['description'],
+         'formal_reference_accepted':record['kind']=='organizer-standard',
+         'reference_code_unchanged':record['kind'] in ('organizer-standard','official-unmodified-execution'),
+         'provenance':record}
+(output/'reference.json').write_text(json.dumps(receipt,indent=2)+'\n')
+print('SOURCE_AND_REFERENCE_PROVENANCE_RECORDED',receipt['kind'],flush=True)
+PYREF
 run_stage continuous python scripts/continuous.py --model-path "$MODEL_PATH" \
     --first-frame "$FIRST_FRAME" --output-dir "$task_output/continuous" --seeds 42,43
 task_video="$task_output/continuous/case-00-seed-42/generated.mp4"
@@ -93,7 +110,10 @@ import hashlib, json, math, os, re
 from pathlib import Path
 output=Path(os.environ['SGCUP_VALIDATION_OUTPUT'])
 stages=[json.loads(line) for line in (output/'stages.jsonl').read_text().splitlines()]
-assert [item['stage'] for item in stages] == ['environment','build','runtime-policy','continuous','comparison','media','media-seed43']
+expected_stages=['environment','build','runtime-policy']
+if os.environ['SGCUP_NEW_REFERENCE']=='1':expected_stages.append('reference')
+expected_stages+=['continuous','comparison','media','media-seed43']
+assert [item['stage'] for item in stages] == expected_stages
 assert all(item['exit']==0 for item in stages)
 cases=json.loads((output/'continuous/cases.json').read_text())
 assert [item['seed'] for item in cases]==[42,43] and all(item['exit']==0 for item in cases)
