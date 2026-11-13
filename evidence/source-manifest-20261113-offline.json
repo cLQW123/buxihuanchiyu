@@ -6192,7 +6192,7 @@
   "scripts/create_reference.py": "9342512b1f986bfd9a91c504691b342d0b8c8286b4a850c28db78a11d8afbc44",
   "scripts/create_source_manifest.py": "a787c8fb8142489ec27487b78c490d83b987184d06d3e80ee98662455939c2a1",
   "scripts/env.sh": "7e4ae5f88f0c5e34a8d7bb16d3450ad6f41938c25161ae6925de202b3e02d5e8",
-  "scripts/fetch_dependencies.py": "b7025d50f9a0573dba3902f5b1f8580b7165e23de0ea098b7421c2d56ab88f17",
+  "scripts/fetch_dependencies.py": "2f16f7914361ff8a8c50161188817be29dd6a5454f34f2c9efa460bad29057f1",
   "scripts/prepare_compiler_dependency.py": "ed308d325e68d74623ccd1d5ef791e446518c5e47a929d10bbea58213300ba20",
   "scripts/prepare_sources.sh": "f671cb9b9cf71cb3c9152cbf4d752c05c7456649895823ccd855d2e971e746be",
   "scripts/run.py": "37d961070a76c39b2fe2d117e3015c9368e151c59d1a450283d5823c5af08048",

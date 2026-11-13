@@ -27,16 +27,33 @@ def main():
     archives.mkdir(parents=True, exist_ok=True)
     manifest = json.loads((ROOT / 'dependencies/artifacts.json').read_text())
     receipt = []
+    release_assets = None
     for item in manifest['artifacts']:
         path = archives / item['file']
         if not path.is_file():
             if args.offline:
                 raise RuntimeError('Missing offline asset: ' + str(path))
-            url = ('https://github.com/' + manifest['repository'] + '/releases/download/'
-                   + manifest['release_tag'] + '/' + item['file'])
+            if release_assets is None:
+                endpoint = ('https://api.github.com/repos/' + manifest['repository']
+                            + '/releases/tags/' + manifest['release_tag'])
+                request = urllib.request.Request(endpoint, headers={
+                    'User-Agent': 'sgcup-offline-dependency-preparation',
+                    'Accept': 'application/vnd.github+json'})
+                with urllib.request.urlopen(request, timeout=60) as response:
+                    release = json.load(response)
+                if release.get('draft'):
+                    raise RuntimeError('Dependency release is not public')
+                release_assets = {asset['name']: asset for asset in release['assets']}
+            asset = release_assets.get(item['file'])
+            if asset is None or asset['size'] != item['bytes']:
+                raise RuntimeError('Public release asset is missing or has an unexpected size: ' + item['file'])
+            url = asset['url']
             temporary = path.with_name(path.name + '.partial')
             print('DOWNLOADING_OFFLINE_DEPENDENCY', item['file'], flush=True)
-            with urllib.request.urlopen(url, timeout=60) as response, temporary.open('wb') as stream:
+            request = urllib.request.Request(url, headers={
+                'User-Agent': 'sgcup-offline-dependency-preparation',
+                'Accept': 'application/octet-stream', 'X-GitHub-Api-Version': '2022-11-28'})
+            with urllib.request.urlopen(request, timeout=60) as response, temporary.open('wb') as stream:
                 shutil.copyfileobj(response, stream, length=4 * 1024 * 1024)
             if temporary.stat().st_size != item['bytes'] or digest(temporary) != item['sha256']:
                 raise RuntimeError('Downloaded asset failed SHA256 verification: ' + str(temporary))
