@@ -26,8 +26,12 @@ record=json.loads(source.read_text())
 digest=hashlib.file_digest(reference.open('rb'),'sha256').hexdigest()
 expected=record.get('video_sha256',record.get('reference_video_sha256'))
 assert digest == expected, 'Reference video differs from its provenance record'
-assert record.get('kind') in ('organizer-standard', 'compatibility-reference'), 'Explicit reference kind required'
+assert record.get('kind') in ('organizer-standard', 'official-unmodified-execution', 'compatibility-reference'), 'Explicit reference kind required'
 assert record.get('description'), 'Reference source description required'
+if record['kind']=='official-unmodified-execution':
+    assert record.get('reference_is_unmodified_execution') is True
+    assert record.get('full_generation_completed') is True
+    assert record.get('entry_modifications')==[] and record.get('numerical_execution_wrappers')==[]
 proof=json.loads((root/'SOURCE_PROVENANCE.json').read_text())
 for relative, expected in proof['files'].items():
     assert hashlib.file_digest((root/relative).open('rb'),'sha256').hexdigest()==expected, relative
@@ -37,6 +41,7 @@ assert Path(os.environ['NINETOOTHED_CACHE_DIR']).resolve().is_relative_to(root/'
 receipt={'source':str(source),'video':str(reference),'video_sha256':digest,
          'kind':record['kind'],'description':record['description'],
          'formal_reference_accepted':record['kind']=='organizer-standard',
+         'reference_code_unchanged':record['kind'] in ('organizer-standard','official-unmodified-execution'),
          'provenance':record}
 (output/'reference.json').write_text(json.dumps(receipt,indent=2)+'\n')
 print('SOURCE_AND_REFERENCE_PROVENANCE_RECORDED',receipt['kind'],len(proof['files']),flush=True)
@@ -102,6 +107,7 @@ assert media['pass'] and media['actual']==media['reference']
 reference=json.loads((output/'reference.json').read_text())
 receipt={'technical_validation_pass':True,'reference_kind':reference['kind'],
          'formal_reference_accepted':reference['formal_reference_accepted'],
+         'reference_code_unchanged':reference['reference_code_unchanged'],
          'ssim_percent':float(match.group(1)),'cases':cases,'stages':stages,
          'scope':'fresh offline source build and consecutive full FL2VA runs; does not certify organizer acceptance or all operator boundaries'}
 (output/'validation.json').write_text(json.dumps(receipt,indent=2)+'\n')

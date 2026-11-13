@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/huggingface/diffusers",
+  "commit": "d5baa4fb548294f47dbca49890abd4b291204c60",
+  "version": "0.40.0.dev0",
+  "source_archive_sha256": "b78bcf911461c6628a2ec9d8c0e9ef054acfaa06c8d8ac19175368be1e6efbad",
+  "wheel_file": "diffusers-0.40.0.dev0-py3-none-any.whl",
+  "wheel_sha256": "759d317f668d7b57a6d4470da04cf875fabeee58cca19b01909d08c3a16f21e4",
+  "python_files_verified_byte_identical_to_official_source": 1022,
+  "runtime_success_established": false
+}

@@ -198,8 +198,8 @@
     },
     {
       "file": "diffusers-0.40.0.dev0-py3-none-any.whl",
-      "sha256": "7bef01cc07bb0b29be1f6657c48bc0b8b7cac7c19206d24f4affb615a68578b4",
-      "bytes": 5684885,
+      "sha256": "759d317f668d7b57a6d4470da04cf875fabeee58cca19b01909d08c3a16f21e4",
+      "bytes": 5849551,
       "name": "diffusers",
       "version": "0.40.0.dev0",
       "requires_dist": [
