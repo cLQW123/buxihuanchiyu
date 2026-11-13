@@ -14,7 +14,13 @@
       "bytes": 111739914,
       "sha256": "9f3428ddb035543c79d49db1cd88cb4d19a66cdf43d659bacc88c3f6f274bcd8",
       "extract_to": "."
+    },
+    {
+      "file": "sgcup-xmake-3.1.2-linux-x86_64.tar.gz",
+      "bytes": 1687163,
+      "sha256": "d46132b8a8aace371fa995c9dc95952bd3bc2ae7cd6343526b7332af225986f9",
+      "extract_to": "."
     }
   ],
-  "base_environment": "Competition Linux x86_64, Python 3.11, vendor Torch 2.9.0+das.opt1.dtk2604, DTK, driver, GCC and xmake are provided by the competition platform."
+  "base_environment": "Competition Linux x86_64, Python 3.11, vendor Torch 2.9.0+das.opt1.dtk2604, DTK, driver and GCC are provided by the competition platform. The exact tested xmake executable and scripts are included as an offline asset."
 }

@@ -1,0 +1,118 @@
+{
+  "status": "complete isolated technical validation",
+  "validated_integration_commit": "b166ade6736dc0a514c845a47e1b02630a625d00",
+  "component_commits": {
+    "main": "b166ade6736dc0a514c845a47e1b02630a625d00",
+    "InfiniCore": "4a89f7f0c20b24e3edf44fc249156341fcf0a1b3",
+    "InfiniLM": "71a34004bf93ed11a6fc3ec060b6543021dbe7aa",
+    "ninetoothed": "db28777b0e4cba1e76db9c47579879bbf4021c61",
+    "ntops": "82cba6cf2200919b5d12c86adbea60cbfb516040",
+    "InfiniCore/third_party/spdlog": "f1d748e5e3edfa4b1778edea003bac94781bc7b7",
+    "InfiniLM/third_party/spdlog": "88a0e07ad5bb3e2651cd5613530b3f06a15fc400",
+    "InfiniLM/third_party/json": "5ed07097faa6c50199c4a3b66e5ed37d4fbfccc2"
+  },
+  "ssim_percent": 92.371,
+  "specifications": {
+    "width": 768,
+    "height": 928,
+    "fps": "24",
+    "codec": "h264",
+    "pixel_format": "yuv420p",
+    "audio": [
+      {
+        "codec": "aac",
+        "sample_rate": 32000,
+        "channels": 2
+      }
+    ],
+    "frames": 124,
+    "decoded_audio_samples": 165888
+  },
+  "stages": [
+    {
+      "stage": "environment",
+      "exit": 0,
+      "wall_seconds": 34.20683145523071
+    },
+    {
+      "stage": "build",
+      "exit": 0,
+      "wall_seconds": 1206.7912266254425
+    },
+    {
+      "stage": "runtime-policy",
+      "exit": 0,
+      "wall_seconds": 0.1415867805480957
+    },
+    {
+      "stage": "reference",
+      "exit": 0,
+      "wall_seconds": 644.0287222862244
+    },
+    {
+      "stage": "continuous",
+      "exit": 0,
+      "wall_seconds": 2851.9071323871613
+    },
+    {
+      "stage": "comparison",
+      "exit": 0,
+      "wall_seconds": 6.177046775817871
+    },
+    {
+      "stage": "media",
+      "exit": 0,
+      "wall_seconds": 0.44755005836486816
+    },
+    {
+      "stage": "media-seed43",
+      "exit": 0,
+      "wall_seconds": 0.4811100959777832
+    }
+  ],
+  "cases": [
+    {
+      "seed": 42,
+      "exit": 0,
+      "wall_seconds": 1514.9609155654907,
+      "video_sha256": "cb9fecb467c10eca309261da38375daa2f750e442292227baa69d0942c8a258f",
+      "video_bytes": 1552214,
+      "end_to_end_seconds": 1456.045
+    },
+    {
+      "seed": 43,
+      "exit": 0,
+      "wall_seconds": 1336.8376381397247,
+      "video_sha256": "2b8dd6c8039ff9d91199b46acd381e03cee2d5d309c60bcf5451f5eb909bf0dd",
+      "video_bytes": 1984393,
+      "end_to_end_seconds": 1277.743
+    }
+  ],
+  "checks": {
+    "rotary": 6,
+    "qwen_rms": 4,
+    "eight_device_native": 88,
+    "boundary": 232
+  },
+  "reference_is_unmodified_execution": true,
+  "reference_video_sha256": "177e14213a0a7a1eeed9b3450800eb1377992fdef8546950345166c17fc503ec",
+  "organizer_acceptance_established": false,
+  "resources": {
+    "scope": "node-level sysfs VRAM samples during the final two native cases; not exact process peaks",
+    "sampling_period_seconds": 10,
+    "sample_count": 285,
+    "per_card_max_GiB": {
+      "card5": 27.14499282836914,
+      "card3": 27.14499282836914,
+      "card1": 36.119415283203125,
+      "card8": 26.95749282836914,
+      "card6": 27.14499282836914,
+      "card4": 27.144989013671875,
+      "card2": 27.14499282836914,
+      "card7": 27.144996643066406
+    },
+    "single_card_max_GiB": 36.119415283203125,
+    "maximum_simultaneous_sum_GiB": 225.9468650817871
+  },
+  "scope": "fixed Base FL2VA in the provided eight-card environment; final organizer assessment is separate"
+}
