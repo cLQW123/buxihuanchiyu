@@ -6,6 +6,7 @@ construction remains in Torch; numerical operations are handled explicitly.
 """
 from collections import Counter
 import functools
+import math
 import os
 
 import ninetoothed as nt
@@ -14,6 +15,7 @@ from torch.utils._python_dispatch import TorchDispatchMode
 
 from infiniop.ops.conv3d.ninetoothed.conv3d import premake as conv3d_premake
 from infiniop.ops.group_norm.ninetoothed.group_norm import premake as group_norm_premake
+from infiniop.ops.vae_support.ninetoothed.grid import premake_arange
 from infiniop.ops.vae_support.ninetoothed.support import (
     premake_padding,
     premake_pointwise,
@@ -75,7 +77,6 @@ class NineToothedVAEEncoderMode(TorchDispatchMode):
         "aten.empty_strided.default", "aten.zeros_like.default", "aten.zeros.default",
         "aten.ones.default", "aten.ones_like.default", "aten.full.default",
         "aten.full_like.default", "aten.new_empty.default", "aten.new_zeros.default",
-        "aten.arange.default", "aten.arange.start", "aten.arange.start_step",
         "aten.lift_fresh.default", "aten.repeat.default",
         "aten.unbind.int", "aten.flatten.using_ints", "aten.unflatten.int",
         "aten.tile.default", "aten.meshgrid.indexing",
@@ -89,6 +90,22 @@ class NineToothedVAEEncoderMode(TorchDispatchMode):
         kwargs = kwargs or {}
         name = str(func)
         self.operations[name] += 1
+        if name in ("aten.arange.default", "aten.arange.start", "aten.arange.start_step"):
+            start, end = (0, args[0]) if name == "aten.arange.default" else args[:2]
+            step = args[2] if len(args) > 2 else 1
+            dtype = kwargs.get("dtype")
+            if dtype is None:
+                dtype = torch.get_default_dtype() if any(isinstance(value, float) for value in (start, end, step)) else torch.int64
+            if dtype not in _DTYPES:
+                return func(*args, **kwargs)
+            device = torch.device(kwargs.get("device", "cpu"))
+            if device.type != "cuda" or step == 0:
+                raise NotImplementedError("Floating VAE coordinate ranges require a preplaced accelerator")
+            count = max(0, math.ceil((end - start) / step))
+            output = torch.empty(count, device=device, dtype=dtype)
+            if count:
+                _kernel(premake_arange, _DTYPES[dtype])(output, float(start), float(step))
+            return output
         if name == "aten.copy_.default":
             destination, source = args[:2]
             if destination.dtype == source.dtype:
