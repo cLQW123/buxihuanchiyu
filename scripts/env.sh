@@ -33,7 +33,8 @@ unset SGCUP_TP_MATMUL_KERNEL_DIR
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 HF_HUB_DISABLE_TELEMETRY=1
 export TRITON_CACHE_DIR="${SGCUP_CACHE_DIR:-$sgcup_root/build/cache/triton}"
+export NINETOOTHED_CACHE_DIR="${NINETOOTHED_CACHE_DIR:-$sgcup_root/build/cache/ninetoothed}"
 export SGCUP_H3_ROPE_KERNEL_DIR="$sgcup_root/build/h3-rope"
 export SGCUP_QWEN_RMS_KERNEL_DIR="$sgcup_root/build/qwen-rms"
-mkdir -p "$TRITON_CACHE_DIR"
+mkdir -p "$TRITON_CACHE_DIR" "$NINETOOTHED_CACHE_DIR"
 unset sgcup_path sgcup_inherited_paths sgcup_dependency_paths

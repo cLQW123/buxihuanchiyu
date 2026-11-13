@@ -9,7 +9,7 @@
 [submodule "Projects/ninetoothed"]
 	path = Projects/ninetoothed
 	url = https://github.com/cLQW123/buxihuanchiyu.git
-	branch = sgcup-ninetoothed-20261111
+	branch = sgcup-ninetoothed-20261113
 [submodule "Projects/ntops"]
 	path = Projects/ntops
 	url = https://github.com/InfiniTensor/ntops.git

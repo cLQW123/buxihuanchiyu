@@ -2,6 +2,10 @@
 
 本工程以比赛指定 InfiniCore `minimax-h3`、InfiniLM `minimax_h3` 代码基础及 NineToothed 0.26.0 构建首帧视频生成路径。具体公开提交在 `source-lock.json` 中固定。权重和比赛数据由环境提供，不包含在仓库内。
 
+本次新增独立venv、69个固定wheel的哈希清单、可配置的DTK／GCC路径和独立九齿缓存。完整新流程见`reproduce/干净环境复现.md`，依赖边界见`dependencies/离线依赖说明.md`。这些新增部署代码当前仍在干净环境验证，不能把旧版生成结果作为本版已验证的证明。
+
+正确性状态需区分：此前完整八卡FL2VA输出与精度兼容参考的SSIM为92.148%，规格一致。参考运行在独立副本中修正了3处VAE加载精度；官方入口与比较脚本文件保持原样，但这不等价于“未经修改的官方基线执行成功”，尚不能据此宣称严格初赛验收已经完成。
+
 ## 环境
 
 使用赛事原生独占 8 卡 Hygon gfx936 环境、DTK/HIP 6.3、Python 3.11、PyTorch 2.9、Triton 3.5.1。Diffusers、Transformers、NTops 及离线头文件来自比赛允许的依赖。运行前激活比赛 Python 环境并 `source /opt/dtk/env.sh`。保留平台网络配置；生成过程设置 Hugging Face 离线模式。

@@ -17,7 +17,8 @@ def git(path, *args):
     return subprocess.check_output(['git', '-C', str(path), *args], text=True).strip()
 
 
-def export_archive(checkout, destination, expected_commit):
+def export_archive(checkout, destination, expected_commit,
+                   publication_status='public-commit-verified'):
     lock = json.loads((checkout / 'source-lock.json').read_text())
     repositories = [(checkout, '')]
     commits = {'main': expected_commit}
@@ -65,7 +66,8 @@ def export_archive(checkout, destination, expected_commit):
                         output.addfile(member, io.BytesIO(content))
                     else:
                         output.addfile(member)
-        provenance = json.dumps({'scope': 'tracked published source only; no build products',
+        provenance = json.dumps({'scope': 'tracked pinned source only; no build products',
+                                 'publication_status': publication_status,
                                  'integration_commit': expected_commit,
                                  'excluded_main_content': ['outputs/', 'examples/', 'evidence/ except the source manifest'],
                                  'commits': commits, 'files': exported}, indent=2).encode()
@@ -73,7 +75,8 @@ def export_archive(checkout, destination, expected_commit):
         entry.size = len(provenance)
         entry.mode = 0o644
         output.addfile(entry, io.BytesIO(provenance))
-    result = {'integration_commit': expected_commit, 'archive': str(destination.resolve()),
+    result = {'integration_commit': expected_commit, 'publication_status': publication_status,
+              'archive': str(destination.resolve()),
               'bytes': destination.stat().st_size,
               'sha256': hashlib.sha256(destination.read_bytes()).hexdigest(),
               'commits': commits, 'tracked_file_count': len(exported)}

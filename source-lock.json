@@ -15,8 +15,8 @@
     },
     "ninetoothed": {
       "url": "https://github.com/cLQW123/buxihuanchiyu",
-      "branch": "sgcup-ninetoothed-20261111",
-      "commit": "581e63e411d4dc228271e4f791f151e6fa942063",
+      "branch": "sgcup-ninetoothed-20261113",
+      "commit": "db28777b0e4cba1e76db9c47579879bbf4021c61",
       "base_commit": "daf55c76c8e8b50904b0b84678d9bca93a1c8948"
     },
     "ntops": {
@@ -26,15 +26,8 @@
       "base_commit": "82cba6cf2200919b5d12c86adbea60cbfb516040"
     }
   },
-  "source_manifest": "evidence/source-manifest-v323.json",
-  "source_manifest_status": "source and package hashes verified; v323 differs from runtime-start v322 only in README text",
-  "source_manifest_aggregate_sha256": "03c72c62cdf408ac97ca0ed9fbc3d336e5599e091437a43e53c138a3c3d1a2c5",
-  "source_manifest_file_count": 4563,
-  "runtime_start_source_manifest": "evidence/source-manifest-v322.json",
-  "runtime_start_manifest_delta": {
-    "changed_files": [
-      "README.md"
-    ],
-    "scope": "documentation only; source branch code and runtime scripts unchanged"
-  }
+  "source_manifest": "evidence/source-manifest-20261113-offline.json",
+  "source_manifest_sha256": "faa0af7037b56f0aefc8b1caed648c04fac7cf1ce0275370425551313924fa14",
+  "source_manifest_file_count": 6200,
+  "source_manifest_scope": "tracked implementation, dependency locks and documentation; source-lock and evidence excluded to avoid recursive hashes"
 }

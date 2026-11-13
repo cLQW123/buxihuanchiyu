@@ -14,6 +14,8 @@ core = root/'Projects/InfiniCore'
 lm = root/'Projects/InfiniLM'
 prefix = Path(os.environ['INFINI_ROOT'])
 build = root/'build'
+dtk = Path(os.environ.get('DTK_ROOT', '/opt/dtk')).resolve()
+cuda = Path(os.environ.get('HYGON_CUDA_HOME', str(dtk/'cuda/cuda'))).resolve()
 objects = build/'objects'
 objects.mkdir(parents=True, exist_ok=True)
 from ninetoothed._compile_triton import install_hygon_llvm_compatibility
@@ -24,7 +26,7 @@ generated=core/'build/ninetoothed'
 ops=('kv_caching','flash_attention','swiglu')
 flags=['-O2','-fPIC','-std=c++17','-DENABLE_CPU_API','-DENABLE_HYGON_API',
        '-DENABLE_NINETOOTHED','-DENABLE_CUDNN_API',f'-I{core/"include"}',
-       '-I/opt/dtk/include','-I/opt/dtk/cuda/cuda/include']
+       f'-I{dtk/"include"}', f'-I{cuda/"include"}']
 
 def compile_source(source, flags):
     obj=objects/('_'.join(source.relative_to(root).parts)+'.o')
@@ -45,7 +47,7 @@ if not base_objects or not all(archive.is_file() for archive in archives):
     raise RuntimeError('The fresh xmake base build is incomplete')
 needed=re.findall(r'Shared library: \[(.*?)\]',subprocess.check_output(
     ['readelf','-d',str(release/'libinfiniop.so')],text=True))
-linkdirs=[prefix/'lib',Path('/opt/dtk/lib'),Path('/opt/dtk/hip/lib'),Path('/opt/dtk/cuda/cuda/lib64')]
+linkdirs=[prefix/'lib', dtk/'lib', dtk/'hip/lib', cuda/'lib64']
 command=['g++','-shared','-Wl,-soname,libinfiniop.so','-Wl,-z,defs',*map(str,base_objects),
          *map(str,replacements),'-Wl,--start-group',*map(str,archives),'-Wl,--end-group',
          *[f'-L{directory}' for directory in linkdirs],*map(str,sorted(generated.glob('*.so'))),
