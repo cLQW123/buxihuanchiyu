@@ -426,10 +426,15 @@ index 77c5791..ff776d7 100644
      subprocess.run(command, check=True)
  
 diff --git a/src/ninetoothed/generation.py b/src/ninetoothed/generation.py
-index 6ea1d0f..9fed624 100644
+index 6ea1d0f..e1e66c3 100644
 --- a/src/ninetoothed/generation.py
 +++ b/src/ninetoothed/generation.py
-@@ -10,7 +10,6 @@ import pathlib
+@@ -6,11 +6,11 @@ import hashlib
+ import inspect
+ import itertools
+ import math
++import os
+ import pathlib
  import subprocess
  import textwrap
  
@@ -437,7 +442,20 @@ index 6ea1d0f..9fed624 100644
  import triton
  from triton.language.extra import libdevice
  
-@@ -370,6 +369,18 @@ class CodeGenerator(ast.NodeTransformer):
+@@ -21,8 +21,10 @@ from ninetoothed.symbol import Symbol
+ from ninetoothed.tensor import Tensor
+ from ninetoothed.torchifier import Torchifier
+ 
+-CACHE_DIR = pathlib.Path.home() / ".ninetoothed"
+-CACHE_DIR.mkdir(exist_ok=True)
++CACHE_DIR = pathlib.Path(
++    os.environ.get("NINETOOTHED_CACHE_DIR", pathlib.Path.home() / ".ninetoothed")
++).expanduser()
++CACHE_DIR.mkdir(parents=True, exist_ok=True)
+ 
+ 
+ class CodeGenerator(ast.NodeTransformer):
+@@ -370,6 +372,18 @@ class CodeGenerator(ast.NodeTransformer):
          return isinstance(node, ast.Name) and node.id in self._context
  
      def _generate_autotune(self, params, meta):
@@ -456,7 +474,7 @@ index 6ea1d0f..9fed624 100644
          inequalities = True
  
          for arg in self._args:
-@@ -642,6 +653,29 @@ class CodeGenerator(ast.NodeTransformer):
+@@ -642,6 +656,29 @@ class CodeGenerator(ast.NodeTransformer):
          pointers, mask = self._generate_pointers_and_mask(tensor, indices)
          other = type(self)._generate_other(tensor)
  
