@@ -11,6 +11,10 @@ import subprocess
 import sys
 import sysconfig
 
+from pip._vendor.packaging.markers import default_environment
+from pip._vendor.packaging.requirements import Requirement
+from pip._vendor.packaging.utils import canonicalize_name
+
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -76,6 +80,20 @@ def main():
     versions = runtime['environment']['packages']
     torch_dist = vendor_distribution(args.vendor_torch_site, 'torch', versions['torch'])
     triton_dist = vendor_distribution(args.vendor_triton_site, 'triton', versions['triton'])
+    available = {canonicalize_name(item['name']): item['version'] for item in lock['wheels']}
+    available.update(torch=torch_dist.version, triton=triton_dist.version)
+    environment = default_environment()
+    environment['extra'] = ''
+    requirements = [(item['name'], item['requires_dist']) for item in lock['wheels']]
+    requirements += [('torch', torch_dist.requires or []), ('triton', triton_dist.requires or [])]
+    for package, entries in requirements:
+        for raw in entries:
+            requirement = Requirement(raw)
+            if requirement.marker and not requirement.marker.evaluate(environment):
+                continue
+            actual = available.get(canonicalize_name(requirement.name))
+            if actual is None or actual not in requirement.specifier:
+                raise RuntimeError(f'Offline dependency closure fails: {package} requires {raw}; got {actual}')
     for path in (args.dtk_root / 'env.sh', args.gcc_root / 'bin/g++',
                  args.xmake_root / 'bin/xmake', args.xmake_root / 'share/xmake'):
         if not path.exists():

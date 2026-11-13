@@ -75,7 +75,11 @@
       "urllib3": "2.8.0",
       "wcwidth": "0.9.4",
       "wheel": "0.45.1",
-      "zipp": "4.1.2"
+      "zipp": "4.1.2",
+      "annotated-types": "0.7.0",
+      "pydantic": "2.12.5",
+      "pydantic_core": "2.41.5",
+      "typing-inspection": "0.4.2"
     },
     "tested_python": "3.11.15 (competition interpreter)"
   },
