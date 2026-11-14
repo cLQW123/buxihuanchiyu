@@ -1,18 +1,48 @@
 # MiniMax H3 FL2VA 八卡适配
 
-2026年11月14日在赛事f12r2n14独占八卡Hygon gfx936节点完成全新隔离环境验证。源码重建、330项数值与运行时检查、原版官方参考生成、seed42/43两例连续完整生成、官方SSIM比较及严格音视频规格检查全部通过，所有阶段退出0。最终SSIM为**92.371%**，两例均为768×928、124帧、24 FPS、H.264/yuv420p及32 kHz双声道AAC。
+2026年11月14日在赛事f12r2n14独占八卡Hygon gfx936节点完成全新隔离环境验证。源码重建、330项数值与运行时检查、原版官方参考生成、seed42/43两例连续完整生成、官方SSIM比较及严格音视频规格检查全部通过，所有阶段退出0。最终SSIM为**92.200%**，两例均为768×928、124帧、24 FPS、H.264/yuv420p及32 kHz双声道AAC。
 
-实际完整运行的集成提交为`b166ade6736dc0a514c845a47e1b02630a625d00`；本次发布后续仅更新说明、验证证据和依赖资产元数据，参与构建和推理的代码保持一致。组件分支及完整commit由`source-lock.json`固定。最终日志、配置、退出码、输出示例和依赖包见GitHub Release `offline-runtime-20261114`。最终评测由赛事方统一执行，本仓库列出实测技术结果。
+本轮直接从GitHub匿名拉取固定公开提交并重新下载三个Release依赖资产，在新目录完成独立安装、全部源码重建和完整生成；计算源码无需修改。逐项证据见[evidence/PUBLIC_REPRODUCTION_20261114.json](evidence/PUBLIC_REPRODUCTION_20261114.json)，完整日志和本轮输出见Release资产`sgcup-public-reproduction-20261114.tar.gz`。
+
+实际完整运行的集成提交为`db19655d6a800046c3e534ef40cedfcd16cafb7b`；本次发布后续仅更新说明、验证证据和依赖资产元数据，参与构建和推理的代码保持一致。组件分支及完整commit由`source-lock.json`固定。最终日志、配置、退出码、输出示例和依赖包见GitHub Release `offline-runtime-20261114`。最终评测由赛事方统一执行，本仓库列出实测技术结果。
 
 ## 准备源码和离线依赖
+
+从联网准备、内嵌首帧提取、完整传输到离线八卡执行及最终状态检查的完整步骤见[报告逐步复现](reproduce/报告逐步复现.md)。报告中的`/path/to/...`仅替换基础环境、模型和存储路径。
 
 在联网准备机器执行：
 
 ```bash
+set -euo pipefail
+python - <<'PY'
+import sys, tarfile
+assert sys.version_info >= (3, 11, 4)
+assert hasattr(tarfile, 'data_filter')
+PY
 git clone https://github.com/cLQW123/buxihuanchiyu.git
 cd buxihuanchiyu
+git checkout db19655d6a800046c3e534ef40cedfcd16cafb7b
 bash scripts/prepare_sources.sh
-python scripts/fetch_dependencies.py
+if ! python scripts/fetch_dependencies.py; then
+  python - <<'PYFETCH'
+import json, shutil, urllib.request
+from pathlib import Path
+m = json.loads(
+    Path('dependencies/artifacts.json').read_text())
+a = Path('inputs/archives')
+a.mkdir(parents=True, exist_ok=True)
+u = 'https://github.com/' + m['repository']
+u += '/releases/download/' + m['release_tag'] + '/'
+def fetch(item):
+    r = urllib.request.Request(u + item['file'],
+        headers={'User-Agent': 'sgcup-offline'})
+    with urllib.request.urlopen(r, timeout=60) as src:
+        with (a/item['file']).open('wb') as dst:
+            shutil.copyfileobj(src, dst, 4*1024*1024)
+list(map(fetch, m['artifacts']))
+PYFETCH
+  python scripts/fetch_dependencies.py --offline
+fi
 ```
 
 `prepare_sources.sh`检出固定的InfiniCore、InfiniLM、NineToothed、NTops及必需头文件子模块，核对源码清单并写入`SOURCE_PROVENANCE.json`。下载脚本获取73个固定wheel、完整厂商Triton包及本次实测xmake工具，按`dependencies/artifacts.json`逐项校验SHA256。保留各依赖中的许可证。也可通过`--archive-dir /path/to/assets --offline`校验已有资产。
@@ -56,4 +86,4 @@ InfiniLM负责Qwen3-VL条件编码、H3模型、权重加载及八卡调度，In
 
 Diffusers固定官方`0.40.0.dev0`提交`d5baa4fb548294f47dbca49890abd4b291204c60`，其1022个Python文件与公开源码一致，包含VAE精度衔接的官方修复。最终参考没有自行精度补丁。
 
-本轮程序端到端计时：seed42为1456.045秒，seed43为1277.743秒，官方参考为595.849秒；当前尚无端到端加速。第一次包括冷编译开销，两例进程墙钟时间另有记录。实现覆盖固定Base FL2VA与首帧锚点；模型实际12 taps滤波器及24/48 taps对照通过，额外128 taps探索未达到误差门槛。完整实现边界与限制见`evidence/NUMERICAL_BOUNDARY_AUDIT_20261114.md`，复现细节见`reproduce/干净环境复现.md`。
+本轮程序端到端计时：seed42为1465.574秒，seed43为1274.372秒，官方参考为594.012秒；当前尚无端到端加速。第一次包括冷编译开销，两例进程墙钟时间另有记录。实现覆盖固定Base FL2VA与首帧锚点；模型实际12 taps滤波器及24/48 taps对照通过，额外128 taps探索未达到误差门槛。完整实现边界与限制见`evidence/NUMERICAL_BOUNDARY_AUDIT_20261114.md`，复现细节见`reproduce/干净环境复现.md`。

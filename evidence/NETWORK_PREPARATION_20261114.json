@@ -1,0 +1,31 @@
+{
+  "pass": true,
+  "authentication_used": false,
+  "primary_api_rate_limit_observed": 403,
+  "fallback_test": "fresh empty inputs; force missing primary offline assets to enter the same fallback branch; download all three original release assets through public browser URLs; run the original offline hash and content checks",
+  "fallback_python_ast_matches_report": true,
+  "assets": [
+    {
+      "file": "sgcup-python-wheels-20261113-official040.tar",
+      "bytes": 888903680,
+      "sha256": "370dddba251e02da963424899811f38f1d41795237a13492580a05edb1599cd7",
+      "extract_to": "."
+    },
+    {
+      "file": "sgcup-vendor-triton-3.5.1-dtk2604.tar.gz",
+      "bytes": 111739914,
+      "sha256": "9f3428ddb035543c79d49db1cd88cb4d19a66cdf43d659bacc88c3f6f274bcd8",
+      "extract_to": "."
+    },
+    {
+      "file": "sgcup-xmake-3.1.2-linux-x86_64.tar.gz",
+      "bytes": 1687163,
+      "sha256": "d46132b8a8aace371fa995c9dc95952bd3bc2ae7cd6343526b7332af225986f9",
+      "extract_to": "."
+    }
+  ],
+  "wheel_count": 73,
+  "triton_file_count": 394,
+  "xmake_system_dynamic_dependencies": "\tlinux-vdso.so.1 (0x00007ffd621b2000)\n\tlibatomic.so.1 => /lib64/libatomic.so.1 (0x00001495dce00000)\n\tlibreadline.so.7 => /lib64/libreadline.so.7 (0x00001495dca00000)\n\tlibpthread.so.0 => /lib64/libpthread.so.0 (0x00001495dc600000)\n\tlibdl.so.2 => /lib64/libdl.so.2 (0x00001495dc200000)\n\tlibncurses.so.6 => /lib64/libncurses.so.6 (0x00001495dbe00000)\n\tlibtinfo.so.6 => /lib64/libtinfo.so.6 (0x00001495dba00000)\n\tlibstdc++.so.6 => /lib64/libstdc++.so.6 (0x00001495db600000)\n\tlibm.so.6 => /lib64/libm.so.6 (0x00001495db200000)\n\tlibc.so.6 => /lib64/libc.so.6 (0x00001495dae00000)\n\tlibgcc_s.so.1 => /lib64/libgcc_s.so.1 (0x00001495daa00000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00001495dd200000)\n",
+  "exit": 0
+}

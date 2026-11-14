@@ -1,0 +1,1327 @@
+{
+  "scope": "public GitHub exact-commit checkout and freshly downloaded public offline dependencies; complete isolated eight-device reproduction",
+  "tested_integration_commit": "db19655d6a800046c3e534ef40cedfcd16cafb7b",
+  "preparation": {
+    "node_direct_clone": {
+      "exit": 128,
+      "reason": "Could not resolve host: github.com",
+      "resolution": "Use the report network-preparation and offline-transfer workflow"
+    },
+    "network_preparation": {
+      "anonymous_public_git_clone": true,
+      "commit": "db19655d6a800046c3e534ef40cedfcd16cafb7b",
+      "source_file_count": 6208,
+      "dependencies": [
+        {
+          "file": "sgcup-python-wheels-20261113-official040.tar",
+          "bytes": 888903680,
+          "sha256": "370dddba251e02da963424899811f38f1d41795237a13492580a05edb1599cd7",
+          "extract_to": "."
+        },
+        {
+          "file": "sgcup-vendor-triton-3.5.1-dtk2604.tar.gz",
+          "bytes": 111739914,
+          "sha256": "9f3428ddb035543c79d49db1cd88cb4d19a66cdf43d659bacc88c3f6f274bcd8",
+          "extract_to": "."
+        },
+        {
+          "file": "sgcup-xmake-3.1.2-linux-x86_64.tar.gz",
+          "bytes": 1687163,
+          "sha256": "d46132b8a8aace371fa995c9dc95952bd3bc2ae7cd6343526b7332af225986f9",
+          "extract_to": "."
+        }
+      ],
+      "wheel_count": 73,
+      "artifact_downloads_fresh": true,
+      "complete_source_and_inputs_tar_sha256": "bee597b3c604b4ef99b25d1ee9d94ec71f883d3fcfda88409b4d15ee2aae3057"
+    },
+    "run_root": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu"
+  },
+  "model_input_verification": {
+    "file_count": 61,
+    "bytes": 144051143011,
+    "official_lfs_weight_shards": 32,
+    "pass": true
+  },
+  "runtime_audit": {
+    "pass": true,
+    "integration_commit": "db19655d6a800046c3e534ef40cedfcd16cafb7b",
+    "tracked_source_files_checked": 6208,
+    "changed": [],
+    "system_site_packages": false,
+    "runtime_library_count": 18,
+    "unique_dynamic_dependency_count": 78,
+    "allowed_runtime_prefixes": [
+      "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu",
+      "/usr/lib64",
+      "/usr/lib",
+      "/lib64",
+      "/lib",
+      "/opt/hyhal",
+      "/usr/local/hyhal",
+      "/public/software/compiler/dtk-26.04",
+      "/public/software/compiler/gcc-11.4.0",
+      "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch",
+      "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs"
+    ],
+    "runtime_libraries": [
+      {
+        "name": "build/install/lib/libinfinirt.so",
+        "path": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfinirt.so",
+        "dependencies": [
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcudart.so.12.6.77",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcurand.so.10.3.7.77",
+          "/usr/lib64/librt-2.28.so",
+          "/usr/lib64/libpthread-2.28.so",
+          "/usr/lib64/libdl-2.28.so",
+          "/public/software/compiler/gcc-11.4.0/lib64/libstdc++.so.6",
+          "/usr/lib64/libm-2.28.so",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgcc_s.so.1",
+          "/usr/lib64/libc-2.28.so",
+          "/usr/lib64/ld-2.28.so",
+          "/public/software/compiler/dtk-26.04/hip/lib/libgalaxyhip.so.5.2.26113.2065-6699a1f0",
+          "/public/software/compiler/dtk-26.04/lib/libhiprand.so.1.1",
+          "/usr/lib64/libnuma.so.1.0.0",
+          "/public/software/compiler/dtk-26.04/lib/librocrand.so.1.1"
+        ]
+      },
+      {
+        "name": "build/install/lib/libinfiniop.so",
+        "path": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfiniop.so",
+        "dependencies": [
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_128_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_128_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_64_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_64_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_72_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_72_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/kv_caching_128_INFINI_DTYPE_BF16_64_64.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/swiglu_3_INFINI_DTYPE_BF16_1024.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfinirt.so",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcudart.so.12.6.77",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcublas.so.12.6.3.3",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcurand.so.10.3.7.77",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcublasLt.so.12.6.3.3",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcudnn.so.8.9.1",
+          "/usr/lib64/librt-2.28.so",
+          "/usr/lib64/libpthread-2.28.so",
+          "/usr/lib64/libdl-2.28.so",
+          "/public/software/compiler/gcc-11.4.0/lib64/libstdc++.so.6",
+          "/usr/lib64/libm-2.28.so",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgcc_s.so.1",
+          "/usr/lib64/libc-2.28.so",
+          "/public/software/compiler/dtk-26.04/hip/lib/libgalaxyhip.so.5.2.26113.2065-6699a1f0",
+          "/usr/lib64/ld-2.28.so",
+          "/public/software/compiler/dtk-26.04/lib/libhipblas.so.2.3",
+          "/public/software/compiler/dtk-26.04/lib/librocblas.so.4.3",
+          "/public/software/compiler/dtk-26.04/lib/libhiprand.so.1.1",
+          "/public/software/compiler/dtk-26.04/lib/libhipblaslt.so.0.10",
+          "/public/software/compiler/dtk-26.04/lib/libhipdnn.so",
+          "/usr/lib64/libnuma.so.1.0.0",
+          "/public/software/compiler/dtk-26.04/lib/librocsolver.so.0.1",
+          "/usr/lib64/libmsgpackc.so.2.0.0",
+          "/public/software/compiler/dtk-26.04/lib/librocrand.so.1.1",
+          "/public/software/compiler/dtk-26.04/lib/libMIOpen.so.1.0",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgfortran.so.5",
+          "/public/software/compiler/dtk-26.04/lib/librocsparse.so.1.0",
+          "/public/software/compiler/dtk-26.04/dcc/lib/libomp.so",
+          "/public/software/compiler/dtk-26.04/lib/libhipnn.so",
+          "/public/software/compiler/dtk-26.04/lib/libMIOpen-recommend.so",
+          "/public/software/compiler/gcc-11.4.0/lib64/libquadmath.so.0"
+        ]
+      },
+      {
+        "name": "build/install/lib/libinfiniccl.so",
+        "path": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfiniccl.so",
+        "dependencies": [
+          "/public/software/compiler/dtk-26.04/lib/librccl.so.1.0",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfinirt.so",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcudart.so.12.6.77",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcurand.so.10.3.7.77",
+          "/usr/lib64/librt-2.28.so",
+          "/usr/lib64/libpthread-2.28.so",
+          "/usr/lib64/libdl-2.28.so",
+          "/public/software/compiler/gcc-11.4.0/lib64/libstdc++.so.6",
+          "/usr/lib64/libm-2.28.so",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgcc_s.so.1",
+          "/usr/lib64/libc-2.28.so",
+          "/usr/local/hyhal/lib/librocm_smi64.so.2.8",
+          "/public/software/compiler/dtk-26.04/hip/lib/libgalaxyhip.so.5.2.26113.2065-6699a1f0",
+          "/usr/lib64/ld-2.28.so",
+          "/public/software/compiler/dtk-26.04/lib/libhiprand.so.1.1",
+          "/usr/lib64/libnuma.so.1.0.0",
+          "/public/software/compiler/dtk-26.04/lib/librocrand.so.1.1"
+        ]
+      },
+      {
+        "name": "build/install/lib/libinfinicore_cpp_api.so",
+        "path": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfinicore_cpp_api.so",
+        "dependencies": [
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libtorch.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libtorch_python.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libc10.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libtorch_hip.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libc10_hip.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfiniop.so",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcublas.so.12.6.3.3",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcublasLt.so.12.6.3.3",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcudnn.so.8.9.1",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfiniccl.so",
+          "/public/software/compiler/dtk-26.04/lib/librccl.so.1.0",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfinirt.so",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcudart.so.12.6.77",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcurand.so.10.3.7.77",
+          "/usr/lib64/librt-2.28.so",
+          "/usr/lib64/libpthread-2.28.so",
+          "/usr/lib64/libdl-2.28.so",
+          "/public/software/compiler/gcc-11.4.0/lib64/libstdc++.so.6",
+          "/usr/lib64/libm-2.28.so",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgcc_s.so.1",
+          "/usr/lib64/libc-2.28.so",
+          "/usr/lib64/ld-2.28.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libmkl_intel_lp64.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libmkl_gnu_thread.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libmkl_core.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libgflags-8aee0f6c.so.2.1.2",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libglog-6ed04f2c.so.0.0.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libgomp-12261256.so.1.0.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libibverbs-1a5f644b.so.1.14.37.2",
+          "/public/software/compiler/dtk-26.04/hip/lib/libgalaxyhip.so.5.2.26113.2065-6699a1f0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libmpi-3fcb240d.so.40.40.3",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libshm.so",
+          "/public/software/compiler/dtk-26.04/lib/libMIOpen.so.1.0",
+          "/public/software/compiler/dtk-26.04/lib/libhipblaslt.so.0.10",
+          "/usr/lib64/libnuma.so.1.0.0",
+          "/public/software/compiler/dtk-26.04/lib/libhipblas.so.2.3",
+          "/public/software/compiler/dtk-26.04/lib/libhipfft.so.0.1",
+          "/public/software/compiler/dtk-26.04/lib/libhiprand.so.1.1",
+          "/public/software/compiler/dtk-26.04/lib/libhipsparse.so.1.1.0",
+          "/public/software/compiler/dtk-26.04/lib/libhipsolver.so.0.1",
+          "/public/software/compiler/dtk-26.04/lib/librocsolver.so.0.1",
+          "/public/software/compiler/dtk-26.04/lib/librocblas.so.4.3",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libmagma.so",
+          "/usr/local/hyhal/lib/librocm_smi64.so.2.8",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_128_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_128_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_64_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_64_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_72_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_72_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/kv_caching_128_INFINI_DTYPE_BF16_64_64.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/swiglu_3_INFINI_DTYPE_BF16_1024.so",
+          "/public/software/compiler/dtk-26.04/lib/libhipdnn.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libnl-route-3-9b7e574d.so.200.26.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libnl-3-04364822.so.200.26.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libopen-pal-f45776ee.so.80.0.3",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libpmix-c3e24705.so.2.13.2",
+          "/usr/lib64/libutil-2.28.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libevent_core-2-0b190d66.1.so.7.0.1",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libevent_pthreads-2-3c7151b0.1.so.7.0.1",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libhwloc-977e6c34.so.15.10.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libxml2-0301bbce.so.2.9.7",
+          "/public/software/compiler/dtk-26.04/lib/libhipnn.so",
+          "/public/software/compiler/dtk-26.04/lib/libMIOpen-recommend.so",
+          "/public/software/compiler/dtk-26.04/lib/librocfft.so.0.1",
+          "/public/software/compiler/dtk-26.04/lib/librocrand.so.1.1",
+          "/public/software/compiler/dtk-26.04/lib/librocsparse.so.1.0",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgfortran.so.5",
+          "/public/software/compiler/gcc-11.4.0/lib64/libquadmath.so.0",
+          "/public/software/compiler/dtk-26.04/dcc/lib/libomp.so",
+          "/usr/lib64/libmsgpackc.so.2.0.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libmkl_gf_lp64-e350bb11.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libmkl_gnu_thread-b9643eeb.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libmkl_core-efa527c4.so",
+          "/usr/lib64/libz.so.1.2.11",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/liblzma-6edf4792.so.5.2.4"
+        ]
+      },
+      {
+        "name": "build/install/lib/mha_ninetoothed.so",
+        "path": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/mha_ninetoothed.so",
+        "dependencies": [
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfinicore_cpp_api.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfiniop.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfinirt.so",
+          "/public/software/compiler/gcc-11.4.0/lib64/libstdc++.so.6",
+          "/usr/lib64/libm-2.28.so",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgcc_s.so.1",
+          "/usr/lib64/libc-2.28.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libtorch.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libtorch_python.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libc10.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libtorch_hip.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libc10_hip.so",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcublas.so.12.6.3.3",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcublasLt.so.12.6.3.3",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcudnn.so.8.9.1",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfiniccl.so",
+          "/public/software/compiler/dtk-26.04/lib/librccl.so.1.0",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcudart.so.12.6.77",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcurand.so.10.3.7.77",
+          "/usr/lib64/librt-2.28.so",
+          "/usr/lib64/libpthread-2.28.so",
+          "/usr/lib64/libdl-2.28.so",
+          "/usr/lib64/ld-2.28.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_128_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_128_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_64_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_64_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_72_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_72_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/kv_caching_128_INFINI_DTYPE_BF16_64_64.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/swiglu_3_INFINI_DTYPE_BF16_1024.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libmkl_intel_lp64.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libmkl_gnu_thread.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libmkl_core.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libgflags-8aee0f6c.so.2.1.2",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libglog-6ed04f2c.so.0.0.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libgomp-12261256.so.1.0.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libibverbs-1a5f644b.so.1.14.37.2",
+          "/public/software/compiler/dtk-26.04/hip/lib/libgalaxyhip.so.5.2.26113.2065-6699a1f0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libmpi-3fcb240d.so.40.40.3",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libshm.so",
+          "/public/software/compiler/dtk-26.04/lib/libMIOpen.so.1.0",
+          "/public/software/compiler/dtk-26.04/lib/libhipblaslt.so.0.10",
+          "/usr/lib64/libnuma.so.1.0.0",
+          "/public/software/compiler/dtk-26.04/lib/libhipblas.so.2.3",
+          "/public/software/compiler/dtk-26.04/lib/libhipfft.so.0.1",
+          "/public/software/compiler/dtk-26.04/lib/libhiprand.so.1.1",
+          "/public/software/compiler/dtk-26.04/lib/libhipsparse.so.1.1.0",
+          "/public/software/compiler/dtk-26.04/lib/libhipsolver.so.0.1",
+          "/public/software/compiler/dtk-26.04/lib/librocsolver.so.0.1",
+          "/public/software/compiler/dtk-26.04/lib/librocblas.so.4.3",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libmagma.so",
+          "/usr/local/hyhal/lib/librocm_smi64.so.2.8",
+          "/public/software/compiler/dtk-26.04/lib/libhipdnn.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libnl-route-3-9b7e574d.so.200.26.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libnl-3-04364822.so.200.26.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libopen-pal-f45776ee.so.80.0.3",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libpmix-c3e24705.so.2.13.2",
+          "/usr/lib64/libutil-2.28.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libevent_core-2-0b190d66.1.so.7.0.1",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libevent_pthreads-2-3c7151b0.1.so.7.0.1",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libhwloc-977e6c34.so.15.10.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libxml2-0301bbce.so.2.9.7",
+          "/public/software/compiler/dtk-26.04/lib/libhipnn.so",
+          "/public/software/compiler/dtk-26.04/lib/libMIOpen-recommend.so",
+          "/public/software/compiler/dtk-26.04/lib/librocfft.so.0.1",
+          "/public/software/compiler/dtk-26.04/lib/librocrand.so.1.1",
+          "/public/software/compiler/dtk-26.04/lib/librocsparse.so.1.0",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgfortran.so.5",
+          "/public/software/compiler/gcc-11.4.0/lib64/libquadmath.so.0",
+          "/public/software/compiler/dtk-26.04/dcc/lib/libomp.so",
+          "/usr/lib64/libmsgpackc.so.2.0.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libmkl_gf_lp64-e350bb11.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libmkl_gnu_thread-b9643eeb.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libmkl_core-efa527c4.so",
+          "/usr/lib64/libz.so.1.2.11",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/liblzma-6edf4792.so.5.2.4"
+        ]
+      },
+      {
+        "name": "build/python/_infinilm.so",
+        "path": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/python/_infinilm.so",
+        "dependencies": [
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfinicore_cpp_api.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfiniop.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfinirt.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfiniccl.so",
+          "/public/software/compiler/gcc-11.4.0/lib64/libstdc++.so.6",
+          "/usr/lib64/libm-2.28.so",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgcc_s.so.1",
+          "/usr/lib64/libpthread-2.28.so",
+          "/usr/lib64/libc-2.28.so",
+          "/usr/lib64/ld-2.28.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libtorch.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libtorch_python.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libc10.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libtorch_hip.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libc10_hip.so",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcublas.so.12.6.3.3",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcublasLt.so.12.6.3.3",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcudnn.so.8.9.1",
+          "/public/software/compiler/dtk-26.04/lib/librccl.so.1.0",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcudart.so.12.6.77",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcurand.so.10.3.7.77",
+          "/usr/lib64/librt-2.28.so",
+          "/usr/lib64/libdl-2.28.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_128_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_128_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_64_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_64_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_72_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_72_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/kv_caching_128_INFINI_DTYPE_BF16_64_64.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/swiglu_3_INFINI_DTYPE_BF16_1024.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libmkl_intel_lp64.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libmkl_gnu_thread.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libmkl_core.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libgflags-8aee0f6c.so.2.1.2",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libglog-6ed04f2c.so.0.0.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libgomp-12261256.so.1.0.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libibverbs-1a5f644b.so.1.14.37.2",
+          "/public/software/compiler/dtk-26.04/hip/lib/libgalaxyhip.so.5.2.26113.2065-6699a1f0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libmpi-3fcb240d.so.40.40.3",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libshm.so",
+          "/public/software/compiler/dtk-26.04/lib/libMIOpen.so.1.0",
+          "/public/software/compiler/dtk-26.04/lib/libhipblaslt.so.0.10",
+          "/usr/lib64/libnuma.so.1.0.0",
+          "/public/software/compiler/dtk-26.04/lib/libhipblas.so.2.3",
+          "/public/software/compiler/dtk-26.04/lib/libhipfft.so.0.1",
+          "/public/software/compiler/dtk-26.04/lib/libhiprand.so.1.1",
+          "/public/software/compiler/dtk-26.04/lib/libhipsparse.so.1.1.0",
+          "/public/software/compiler/dtk-26.04/lib/libhipsolver.so.0.1",
+          "/public/software/compiler/dtk-26.04/lib/librocsolver.so.0.1",
+          "/public/software/compiler/dtk-26.04/lib/librocblas.so.4.3",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libmagma.so",
+          "/usr/local/hyhal/lib/librocm_smi64.so.2.8",
+          "/public/software/compiler/dtk-26.04/lib/libhipdnn.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libnl-route-3-9b7e574d.so.200.26.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libnl-3-04364822.so.200.26.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libopen-pal-f45776ee.so.80.0.3",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libpmix-c3e24705.so.2.13.2",
+          "/usr/lib64/libutil-2.28.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libevent_core-2-0b190d66.1.so.7.0.1",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libevent_pthreads-2-3c7151b0.1.so.7.0.1",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libhwloc-977e6c34.so.15.10.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libxml2-0301bbce.so.2.9.7",
+          "/public/software/compiler/dtk-26.04/lib/libhipnn.so",
+          "/public/software/compiler/dtk-26.04/lib/libMIOpen-recommend.so",
+          "/public/software/compiler/dtk-26.04/lib/librocfft.so.0.1",
+          "/public/software/compiler/dtk-26.04/lib/librocrand.so.1.1",
+          "/public/software/compiler/dtk-26.04/lib/librocsparse.so.1.0",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgfortran.so.5",
+          "/public/software/compiler/gcc-11.4.0/lib64/libquadmath.so.0",
+          "/public/software/compiler/dtk-26.04/dcc/lib/libomp.so",
+          "/usr/lib64/libmsgpackc.so.2.0.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libmkl_gf_lp64-e350bb11.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libmkl_gnu_thread-b9643eeb.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libmkl_core-efa527c4.so",
+          "/usr/lib64/libz.so.1.2.11",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/liblzma-6edf4792.so.5.2.4"
+        ]
+      },
+      {
+        "name": "Projects/InfiniCore/python/infinicore/lib/_infinicore.so",
+        "path": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/python/infinicore/lib/_infinicore.so",
+        "dependencies": [
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfinicore_cpp_api.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfiniop.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfinirt.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/install/lib/libinfiniccl.so",
+          "/public/software/compiler/gcc-11.4.0/lib64/libstdc++.so.6",
+          "/usr/lib64/libm-2.28.so",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgcc_s.so.1",
+          "/usr/lib64/libc-2.28.so",
+          "/usr/lib64/ld-2.28.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libtorch.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libtorch_python.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libc10.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libtorch_hip.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libc10_hip.so",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcublas.so.12.6.3.3",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcublasLt.so.12.6.3.3",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcudnn.so.8.9.1",
+          "/public/software/compiler/dtk-26.04/lib/librccl.so.1.0",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcudart.so.12.6.77",
+          "/public/software/compiler/dtk-26.04/cuda/cuda-12/targets/x86_64-linux/lib/libcurand.so.10.3.7.77",
+          "/usr/lib64/librt-2.28.so",
+          "/usr/lib64/libpthread-2.28.so",
+          "/usr/lib64/libdl-2.28.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_128_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_128_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_64_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_64_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_72_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_72_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/kv_caching_128_INFINI_DTYPE_BF16_64_64.so",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/swiglu_3_INFINI_DTYPE_BF16_1024.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libmkl_intel_lp64.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libmkl_gnu_thread.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libmkl_core.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libgflags-8aee0f6c.so.2.1.2",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libglog-6ed04f2c.so.0.0.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libgomp-12261256.so.1.0.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libibverbs-1a5f644b.so.1.14.37.2",
+          "/public/software/compiler/dtk-26.04/hip/lib/libgalaxyhip.so.5.2.26113.2065-6699a1f0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libmpi-3fcb240d.so.40.40.3",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libshm.so",
+          "/public/software/compiler/dtk-26.04/lib/libMIOpen.so.1.0",
+          "/public/software/compiler/dtk-26.04/lib/libhipblaslt.so.0.10",
+          "/usr/lib64/libnuma.so.1.0.0",
+          "/public/software/compiler/dtk-26.04/lib/libhipblas.so.2.3",
+          "/public/software/compiler/dtk-26.04/lib/libhipfft.so.0.1",
+          "/public/software/compiler/dtk-26.04/lib/libhiprand.so.1.1",
+          "/public/software/compiler/dtk-26.04/lib/libhipsparse.so.1.1.0",
+          "/public/software/compiler/dtk-26.04/lib/libhipsolver.so.0.1",
+          "/public/software/compiler/dtk-26.04/lib/librocsolver.so.0.1",
+          "/public/software/compiler/dtk-26.04/lib/librocblas.so.4.3",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch/lib/libmagma.so",
+          "/usr/local/hyhal/lib/librocm_smi64.so.2.8",
+          "/public/software/compiler/dtk-26.04/lib/libhipdnn.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libnl-route-3-9b7e574d.so.200.26.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libnl-3-04364822.so.200.26.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libopen-pal-f45776ee.so.80.0.3",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libpmix-c3e24705.so.2.13.2",
+          "/usr/lib64/libutil-2.28.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libevent_core-2-0b190d66.1.so.7.0.1",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libevent_pthreads-2-3c7151b0.1.so.7.0.1",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libhwloc-977e6c34.so.15.10.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libxml2-0301bbce.so.2.9.7",
+          "/public/software/compiler/dtk-26.04/lib/libhipnn.so",
+          "/public/software/compiler/dtk-26.04/lib/libMIOpen-recommend.so",
+          "/public/software/compiler/dtk-26.04/lib/librocfft.so.0.1",
+          "/public/software/compiler/dtk-26.04/lib/librocrand.so.1.1",
+          "/public/software/compiler/dtk-26.04/lib/librocsparse.so.1.0",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgfortran.so.5",
+          "/public/software/compiler/gcc-11.4.0/lib64/libquadmath.so.0",
+          "/public/software/compiler/dtk-26.04/dcc/lib/libomp.so",
+          "/usr/lib64/libmsgpackc.so.2.0.0",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libmkl_gf_lp64-e350bb11.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libmkl_gnu_thread-b9643eeb.so",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/libmkl_core-efa527c4.so",
+          "/usr/lib64/libz.so.1.2.11",
+          "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs/liblzma-6edf4792.so.5.2.4"
+        ]
+      },
+      {
+        "name": "build/h3-rope/minimax_h3_rope_cache_16_10000_F64_BF16_v65.so",
+        "path": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/h3-rope/minimax_h3_rope_cache_16_10000_F64_BF16_v65.so",
+        "dependencies": [
+          "/usr/lib64/libpthread-2.28.so",
+          "/usr/lib64/libm-2.28.so",
+          "/usr/lib64/librt-2.28.so",
+          "/public/software/compiler/dtk-26.04/hip/lib/libgalaxyhip.so.5.2.26113.2065-6699a1f0",
+          "/public/software/compiler/gcc-11.4.0/lib64/libstdc++.so.6",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgcc_s.so.1",
+          "/usr/lib64/libc-2.28.so",
+          "/usr/lib64/ld-2.28.so",
+          "/usr/lib64/libnuma.so.1.0.0",
+          "/usr/lib64/libdl-2.28.so"
+        ]
+      },
+      {
+        "name": "build/qwen-rms/sgcup_qwen_rms_v140_128.so",
+        "path": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/qwen-rms/sgcup_qwen_rms_v140_128.so",
+        "dependencies": [
+          "/usr/lib64/libpthread-2.28.so",
+          "/usr/lib64/libm-2.28.so",
+          "/usr/lib64/librt-2.28.so",
+          "/public/software/compiler/dtk-26.04/hip/lib/libgalaxyhip.so.5.2.26113.2065-6699a1f0",
+          "/public/software/compiler/gcc-11.4.0/lib64/libstdc++.so.6",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgcc_s.so.1",
+          "/usr/lib64/libc-2.28.so",
+          "/usr/lib64/ld-2.28.so",
+          "/usr/lib64/libnuma.so.1.0.0",
+          "/usr/lib64/libdl-2.28.so"
+        ]
+      },
+      {
+        "name": "build/qwen-rms/sgcup_qwen_rms_v140_5120.so",
+        "path": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/qwen-rms/sgcup_qwen_rms_v140_5120.so",
+        "dependencies": [
+          "/usr/lib64/libpthread-2.28.so",
+          "/usr/lib64/libm-2.28.so",
+          "/usr/lib64/librt-2.28.so",
+          "/public/software/compiler/dtk-26.04/hip/lib/libgalaxyhip.so.5.2.26113.2065-6699a1f0",
+          "/public/software/compiler/gcc-11.4.0/lib64/libstdc++.so.6",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgcc_s.so.1",
+          "/usr/lib64/libc-2.28.so",
+          "/usr/lib64/ld-2.28.so",
+          "/usr/lib64/libnuma.so.1.0.0",
+          "/usr/lib64/libdl-2.28.so"
+        ]
+      },
+      {
+        "name": "Projects/InfiniCore/build/ninetoothed/kv_caching_128_INFINI_DTYPE_BF16_64_64.so",
+        "path": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/kv_caching_128_INFINI_DTYPE_BF16_64_64.so",
+        "dependencies": [
+          "/usr/lib64/libpthread-2.28.so",
+          "/usr/lib64/libm-2.28.so",
+          "/usr/lib64/librt-2.28.so",
+          "/public/software/compiler/dtk-26.04/hip/lib/libgalaxyhip.so.5.2.26113.2065-6699a1f0",
+          "/public/software/compiler/gcc-11.4.0/lib64/libstdc++.so.6",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgcc_s.so.1",
+          "/usr/lib64/libc-2.28.so",
+          "/usr/lib64/ld-2.28.so",
+          "/usr/lib64/libnuma.so.1.0.0",
+          "/usr/lib64/libdl-2.28.so"
+        ]
+      },
+      {
+        "name": "Projects/InfiniCore/build/ninetoothed/flash_attention_0_128_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+        "path": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_128_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+        "dependencies": [
+          "/usr/lib64/libpthread-2.28.so",
+          "/usr/lib64/libm-2.28.so",
+          "/usr/lib64/librt-2.28.so",
+          "/public/software/compiler/dtk-26.04/hip/lib/libgalaxyhip.so.5.2.26113.2065-6699a1f0",
+          "/public/software/compiler/gcc-11.4.0/lib64/libstdc++.so.6",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgcc_s.so.1",
+          "/usr/lib64/libc-2.28.so",
+          "/usr/lib64/ld-2.28.so",
+          "/usr/lib64/libnuma.so.1.0.0",
+          "/usr/lib64/libdl-2.28.so"
+        ]
+      },
+      {
+        "name": "Projects/InfiniCore/build/ninetoothed/flash_attention_0_128_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+        "path": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_128_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+        "dependencies": [
+          "/usr/lib64/libpthread-2.28.so",
+          "/usr/lib64/libm-2.28.so",
+          "/usr/lib64/librt-2.28.so",
+          "/public/software/compiler/dtk-26.04/hip/lib/libgalaxyhip.so.5.2.26113.2065-6699a1f0",
+          "/public/software/compiler/gcc-11.4.0/lib64/libstdc++.so.6",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgcc_s.so.1",
+          "/usr/lib64/libc-2.28.so",
+          "/usr/lib64/ld-2.28.so",
+          "/usr/lib64/libnuma.so.1.0.0",
+          "/usr/lib64/libdl-2.28.so"
+        ]
+      },
+      {
+        "name": "Projects/InfiniCore/build/ninetoothed/flash_attention_0_64_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+        "path": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_64_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+        "dependencies": [
+          "/usr/lib64/libpthread-2.28.so",
+          "/usr/lib64/libm-2.28.so",
+          "/usr/lib64/librt-2.28.so",
+          "/public/software/compiler/dtk-26.04/hip/lib/libgalaxyhip.so.5.2.26113.2065-6699a1f0",
+          "/public/software/compiler/gcc-11.4.0/lib64/libstdc++.so.6",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgcc_s.so.1",
+          "/usr/lib64/libc-2.28.so",
+          "/usr/lib64/ld-2.28.so",
+          "/usr/lib64/libnuma.so.1.0.0",
+          "/usr/lib64/libdl-2.28.so"
+        ]
+      },
+      {
+        "name": "Projects/InfiniCore/build/ninetoothed/flash_attention_0_64_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+        "path": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_64_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+        "dependencies": [
+          "/usr/lib64/libpthread-2.28.so",
+          "/usr/lib64/libm-2.28.so",
+          "/usr/lib64/librt-2.28.so",
+          "/public/software/compiler/dtk-26.04/hip/lib/libgalaxyhip.so.5.2.26113.2065-6699a1f0",
+          "/public/software/compiler/gcc-11.4.0/lib64/libstdc++.so.6",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgcc_s.so.1",
+          "/usr/lib64/libc-2.28.so",
+          "/usr/lib64/ld-2.28.so",
+          "/usr/lib64/libnuma.so.1.0.0",
+          "/usr/lib64/libdl-2.28.so"
+        ]
+      },
+      {
+        "name": "Projects/InfiniCore/build/ninetoothed/flash_attention_0_72_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+        "path": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_72_0_0_2_INFINI_DTYPE_BF16_32_32.so",
+        "dependencies": [
+          "/usr/lib64/libpthread-2.28.so",
+          "/usr/lib64/libm-2.28.so",
+          "/usr/lib64/librt-2.28.so",
+          "/public/software/compiler/dtk-26.04/hip/lib/libgalaxyhip.so.5.2.26113.2065-6699a1f0",
+          "/public/software/compiler/gcc-11.4.0/lib64/libstdc++.so.6",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgcc_s.so.1",
+          "/usr/lib64/libc-2.28.so",
+          "/usr/lib64/ld-2.28.so",
+          "/usr/lib64/libnuma.so.1.0.0",
+          "/usr/lib64/libdl-2.28.so"
+        ]
+      },
+      {
+        "name": "Projects/InfiniCore/build/ninetoothed/flash_attention_0_72_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+        "path": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/flash_attention_0_72_1_0_2_INFINI_DTYPE_BF16_32_32.so",
+        "dependencies": [
+          "/usr/lib64/libpthread-2.28.so",
+          "/usr/lib64/libm-2.28.so",
+          "/usr/lib64/librt-2.28.so",
+          "/public/software/compiler/dtk-26.04/hip/lib/libgalaxyhip.so.5.2.26113.2065-6699a1f0",
+          "/public/software/compiler/gcc-11.4.0/lib64/libstdc++.so.6",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgcc_s.so.1",
+          "/usr/lib64/libc-2.28.so",
+          "/usr/lib64/ld-2.28.so",
+          "/usr/lib64/libnuma.so.1.0.0",
+          "/usr/lib64/libdl-2.28.so"
+        ]
+      },
+      {
+        "name": "Projects/InfiniCore/build/ninetoothed/swiglu_3_INFINI_DTYPE_BF16_1024.so",
+        "path": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniCore/build/ninetoothed/swiglu_3_INFINI_DTYPE_BF16_1024.so",
+        "dependencies": [
+          "/usr/lib64/libpthread-2.28.so",
+          "/usr/lib64/libm-2.28.so",
+          "/usr/lib64/librt-2.28.so",
+          "/public/software/compiler/dtk-26.04/hip/lib/libgalaxyhip.so.5.2.26113.2065-6699a1f0",
+          "/public/software/compiler/gcc-11.4.0/lib64/libstdc++.so.6",
+          "/public/software/compiler/gcc-11.4.0/lib64/libgcc_s.so.1",
+          "/usr/lib64/libc-2.28.so",
+          "/usr/lib64/ld-2.28.so",
+          "/usr/lib64/libnuma.so.1.0.0",
+          "/usr/lib64/libdl-2.28.so"
+        ]
+      }
+    ],
+    "unexpected_dynamic_dependencies": []
+  },
+  "public_evidence_asset": {
+    "pass": true,
+    "file": "sgcup-public-reproduction-20261114.tar.gz",
+    "bytes": 7660785,
+    "sha256": "96f7671ce495a9a09be4f8ff32e5202875bf1d2ac31462d731c525e7c1f7c2ac",
+    "authentication_used": false,
+    "transport": "public browser download URL",
+    "release_tag": "offline-runtime-20261114",
+    "release_draft": false
+  },
+  "final_run": {
+    "scope": "last fully completed isolated validation only",
+    "integration_commit": "db19655d6a800046c3e534ef40cedfcd16cafb7b",
+    "source_commits": {
+      "main": "db19655d6a800046c3e534ef40cedfcd16cafb7b",
+      "InfiniCore": "4a89f7f0c20b24e3edf44fc249156341fcf0a1b3",
+      "InfiniLM": "71a34004bf93ed11a6fc3ec060b6543021dbe7aa",
+      "ninetoothed": "db28777b0e4cba1e76db9c47579879bbf4021c61",
+      "ntops": "82cba6cf2200919b5d12c86adbea60cbfb516040",
+      "InfiniCore/third_party/spdlog": "f1d748e5e3edfa4b1778edea003bac94781bc7b7",
+      "InfiniLM/third_party/spdlog": "88a0e07ad5bb3e2651cd5613530b3f06a15fc400",
+      "InfiniLM/third_party/json": "5ed07097faa6c50199c4a3b66e5ed37d4fbfccc2"
+    },
+    "stages": [
+      {
+        "stage": "environment",
+        "command": [
+          "python",
+          "scripts/check_environment.py"
+        ],
+        "started_epoch": 1794628940.1466362,
+        "exit": 0,
+        "wall_seconds": 34.944361448287964
+      },
+      {
+        "stage": "build",
+        "command": [
+          "bash",
+          "scripts/build.sh"
+        ],
+        "started_epoch": 1794628975.1848807,
+        "exit": 0,
+        "wall_seconds": 1213.530294418335
+      },
+      {
+        "stage": "runtime-policy",
+        "command": [
+          "python",
+          "scripts/validate_runtime_policy.py",
+          "--output",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/outputs/offline-validation/runtime-policy.json"
+        ],
+        "started_epoch": 1794630188.8168216,
+        "exit": 0,
+        "wall_seconds": 0.14946842193603516
+      },
+      {
+        "stage": "reference",
+        "command": [
+          "python",
+          "scripts/create_reference.py",
+          "--model-path",
+          "/tmp/ssb-cjh-1107141/model/MiniMax-H3/diffusers",
+          "--first-frame",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/inputs/competition-first-frame.png",
+          "--output-dir",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/outputs/offline-validation/official-reference"
+        ],
+        "started_epoch": 1794630189.0565434,
+        "exit": 0,
+        "wall_seconds": 649.6989061832428
+      },
+      {
+        "stage": "continuous",
+        "command": [
+          "python",
+          "scripts/continuous.py",
+          "--model-path",
+          "/tmp/ssb-cjh-1107141/model/MiniMax-H3/diffusers",
+          "--first-frame",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/inputs/competition-first-frame.png",
+          "--output-dir",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/outputs/offline-validation/continuous",
+          "--seeds",
+          "42,43"
+        ],
+        "started_epoch": 1794630838.9440024,
+        "exit": 0,
+        "wall_seconds": 2861.7407851219177
+      },
+      {
+        "stage": "comparison",
+        "command": [
+          "python",
+          "Projects/InfiniLM/examples/minimax_h3_compare.py",
+          "--tasks",
+          "fl2va",
+          "--model-path",
+          "/tmp/ssb-cjh-1107141/model/MiniMax-H3/diffusers",
+          "--first-frame",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/inputs/competition-first-frame.png",
+          "--reference-fl2va-video",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/outputs/offline-validation/official-reference/reference.mp4",
+          "--infinilm-fl2va-video",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/outputs/offline-validation/continuous/case-00-seed-42/generated.mp4",
+          "--output-dir",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/outputs/offline-validation/comparison"
+        ],
+        "started_epoch": 1794633700.782365,
+        "exit": 0,
+        "wall_seconds": 6.2388222217559814
+      },
+      {
+        "stage": "media",
+        "command": [
+          "python",
+          "scripts/verify_media.py",
+          "--reference",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/outputs/offline-validation/official-reference/reference.mp4",
+          "--video",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/outputs/offline-validation/continuous/case-00-seed-42/generated.mp4",
+          "--output",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/outputs/offline-validation/media.json"
+        ],
+        "started_epoch": 1794633707.1064627,
+        "exit": 0,
+        "wall_seconds": 0.46775293350219727
+      },
+      {
+        "stage": "media-seed43",
+        "command": [
+          "python",
+          "scripts/verify_media.py",
+          "--reference",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/outputs/offline-validation/official-reference/reference.mp4",
+          "--video",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/outputs/offline-validation/continuous/case-01-seed-43/generated.mp4",
+          "--output",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/outputs/offline-validation/media-seed43.json"
+        ],
+        "started_epoch": 1794633707.6602137,
+        "exit": 0,
+        "wall_seconds": 0.4581146240234375
+      }
+    ],
+    "environment": {
+      "python": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/venv/bin/python",
+      "system_site_packages": false,
+      "vendor_torch": [
+        {
+          "name": "functorch",
+          "source": "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/functorch",
+          "link": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/venv/lib/python3.11/site-packages/functorch"
+        },
+        {
+          "name": "torch",
+          "source": "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch",
+          "link": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/venv/lib/python3.11/site-packages/torch"
+        },
+        {
+          "name": "torch-2.9.0+das.opt1.dtk2604.dist-info",
+          "source": "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch-2.9.0+das.opt1.dtk2604.dist-info",
+          "link": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/venv/lib/python3.11/site-packages/torch-2.9.0+das.opt1.dtk2604.dist-info"
+        },
+        {
+          "name": "torch.libs",
+          "source": "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torch.libs",
+          "link": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/venv/lib/python3.11/site-packages/torch.libs"
+        },
+        {
+          "name": "torchgen",
+          "source": "/public/home/acvduipmem/miniconda3/envs/tt311/lib/python3.11/site-packages/torchgen",
+          "link": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/venv/lib/python3.11/site-packages/torchgen"
+        }
+      ],
+      "vendor_triton": [
+        {
+          "name": "triton",
+          "source": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/inputs/vendor-triton/triton",
+          "link": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/venv/lib/python3.11/site-packages/triton"
+        },
+        {
+          "name": "triton-3.5.1+das.opt1.dtk2604.torch290.dist-info",
+          "source": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/inputs/vendor-triton/triton-3.5.1+das.opt1.dtk2604.torch290.dist-info",
+          "link": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/venv/lib/python3.11/site-packages/triton-3.5.1+das.opt1.dtk2604.torch290.dist-info"
+        },
+        {
+          "name": "triton.libs",
+          "source": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/inputs/vendor-triton/triton.libs",
+          "link": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/venv/lib/python3.11/site-packages/triton.libs"
+        }
+      ],
+      "offline_lock_sha256": "2154024071d4862e3652a30370d853de646706bdfb1726db6fbc46cf62d76b97",
+      "wheel_count": 73,
+      "toolchain": {
+        "dtk_root": "/public/software/compiler/dtk-26.04",
+        "gcc_root": "/public/software/compiler/gcc-11.4.0",
+        "xmake_root": "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/inputs/vendor-xmake"
+      }
+    },
+    "ssim_percent": 92.2,
+    "reference": {
+      "kind": "official-unmodified-execution",
+      "description": "Original official InfiniLM --legacy entry with unmodified pinned upstream Diffusers; no numerical execution adapters.",
+      "official_entry_sha256": "ca54a18a73a7d760d644ca4eb2c3b20678f88dfdbcfa26a62dcd3de617b31af4",
+      "comparison_sha256": "e143c28e4b3acb885662e0aa238aa00ca17cbcc82077f465f2ce57d0f1225590",
+      "diffusers": {
+        "repository": "https://github.com/huggingface/diffusers",
+        "commit": "d5baa4fb548294f47dbca49890abd4b291204c60",
+        "version": "0.40.0.dev0",
+        "source_archive_sha256": "b78bcf911461c6628a2ec9d8c0e9ef054acfaa06c8d8ac19175368be1e6efbad",
+        "wheel_file": "diffusers-0.40.0.dev0-py3-none-any.whl",
+        "wheel_sha256": "759d317f668d7b57a6d4470da04cf875fabeee58cca19b01909d08c3a16f21e4",
+        "python_files_verified_byte_identical_to_official_source": 1022,
+        "runtime_success_established": true,
+        "verified_official_entry_sha256": "ca54a18a73a7d760d644ca4eb2c3b20678f88dfdbcfa26a62dcd3de617b31af4",
+        "verified_generation_configuration": {
+          "task": "fl2va",
+          "frames": 124,
+          "scheduler_points": 50,
+          "seed": 42,
+          "gpus": 8,
+          "entry_exit": 0
+        }
+      },
+      "verified_dependency_python_files": 1022,
+      "first_frame_sha256": "b97c3487ca35da0c803fba3787cf2b7f936d3d4595548ae5b7b576c19934be54",
+      "entry_modifications": [],
+      "numerical_execution_wrappers": [],
+      "command": [
+        "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/venv/bin/python",
+        "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/Projects/InfiniLM/examples/minimax_h3.py",
+        "fl2va",
+        "--model-path",
+        "/tmp/ssb-cjh-1107141/model/MiniMax-H3/diffusers",
+        "--first-frame",
+        "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/inputs/competition-first-frame.png",
+        "--text",
+        "A dog falls asleep",
+        "--gpus",
+        "0,1,2,3,4,5,6,7",
+        "--legacy",
+        "--legacy-text-gpus",
+        "0,1,2,3",
+        "--legacy-transformer-gpus",
+        "4,5,6,7",
+        "--num-frames",
+        "124",
+        "--steps",
+        "50",
+        "--seed",
+        "42",
+        "--output",
+        "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/outputs/offline-validation/official-reference/reference.mp4"
+      ],
+      "reference_is_unmodified_execution": true,
+      "full_generation_completed": true,
+      "organizer_acceptance_established": false,
+      "exit": 0,
+      "process_wall_seconds": 649.1859967708588,
+      "video_sha256": "7c7c2744653fa1c9c91e6df97ef23d85194b1c3325d1488c5884a63c1cd5505b",
+      "video_bytes": 1568409
+    },
+    "reference_timings": {
+      "model.pipeline_create": {
+        "seconds": 0.116
+      },
+      "model.condition_encoder_create_and_load": {
+        "seconds": 13.03
+      },
+      "model.transformer_create_and_load": {
+        "seconds": 11.984
+      },
+      "model.remaining_components_create_and_load": {
+        "seconds": 4.876
+      },
+      "input.files_and_references": {
+        "seconds": 0.037
+      },
+      "input.arguments": {
+        "seconds": 0.0
+      },
+      "compute.condition_encoder": {
+        "seconds": 5.594
+      },
+      "input.video_vae_encode": {
+        "seconds": 0.465
+      },
+      "input.audio_vae_encode": {
+        "seconds": 0.0,
+        "calls": 0
+      },
+      "compute.h3_transformer": {
+        "seconds": 529.651,
+        "calls": 49
+      },
+      "output.video_vae_decode": {
+        "seconds": 21.902
+      },
+      "output.audio_vae_decode": {
+        "seconds": 1.274
+      },
+      "generation.pipeline_total": {
+        "seconds": 562.375
+      },
+      "output.media_encode": {
+        "seconds": 1.575
+      },
+      "total.end_to_end": {
+        "seconds": 594.012
+      },
+      "pipeline.other_preprocess_scheduler": {
+        "seconds": 3.489
+      }
+    },
+    "media": {
+      "reference": {
+        "width": 768,
+        "height": 928,
+        "fps": "24",
+        "codec": "h264",
+        "pixel_format": "yuv420p",
+        "audio": [
+          {
+            "codec": "aac",
+            "sample_rate": 32000,
+            "channels": 2
+          }
+        ],
+        "frames": 124,
+        "decoded_audio_samples": 165888
+      },
+      "actual": {
+        "width": 768,
+        "height": 928,
+        "fps": "24",
+        "codec": "h264",
+        "pixel_format": "yuv420p",
+        "audio": [
+          {
+            "codec": "aac",
+            "sample_rate": 32000,
+            "channels": 2
+          }
+        ],
+        "frames": 124,
+        "decoded_audio_samples": 165888
+      },
+      "pass": true,
+      "video_bytes": 1552214,
+      "video_sha256": "cb9fecb467c10eca309261da38375daa2f750e442292227baa69d0942c8a258f"
+    },
+    "cases": [
+      {
+        "seed": 42,
+        "command": [
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/venv/bin/python",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/scripts/run.py",
+          "fl2va",
+          "--model-path",
+          "/tmp/ssb-cjh-1107141/model/MiniMax-H3/diffusers",
+          "--first-frame",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/inputs/competition-first-frame.png",
+          "--text",
+          "A dog falls asleep",
+          "--gpus",
+          "0,1,2,3,4,5,6,7",
+          "--num-frames",
+          "124",
+          "--steps",
+          "50",
+          "--seed",
+          "42",
+          "--output",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/outputs/offline-validation/continuous/case-00-seed-42/generated.mp4"
+        ],
+        "exit": 0,
+        "wall_seconds": 1527.886064529419,
+        "video_sha256": "cb9fecb467c10eca309261da38375daa2f750e442292227baa69d0942c8a258f",
+        "video_bytes": 1552214,
+        "timings": {
+          "model.pipeline_create": {
+            "seconds": 0.006
+          },
+          "model.condition_encoder_create_and_load": {
+            "seconds": 23.585
+          },
+          "model.transformer_create_and_load": {
+            "seconds": 15.755
+          },
+          "model.remaining_components_create_and_load": {
+            "seconds": 7.621
+          },
+          "input.files_and_references": {
+            "seconds": 0.035
+          },
+          "input.arguments": {
+            "seconds": 0.0
+          },
+          "compute.condition_encoder": {
+            "seconds": 1.847
+          },
+          "input.video_vae_encode": {
+            "seconds": 46.307
+          },
+          "input.audio_vae_encode": {
+            "seconds": 0.0,
+            "calls": 0
+          },
+          "compute.h3_transformer": {
+            "seconds": 1060.802,
+            "calls": 49
+          },
+          "output.video_vae_decode": {
+            "seconds": 159.684
+          },
+          "output.audio_vae_decode": {
+            "seconds": 103.4
+          },
+          "generation.pipeline_total": {
+            "seconds": 1416.967
+          },
+          "output.media_encode": {
+            "seconds": 1.601
+          },
+          "total.end_to_end": {
+            "seconds": 1465.574
+          },
+          "pipeline.other_preprocess_scheduler": {
+            "seconds": 44.926
+          }
+        },
+        "vae_op_counts": {
+          "aten.to.dtype": 53347,
+          "aten.slice.Tensor": 21932,
+          "aten.pad.default": 1454,
+          "aten.conv3d.default": 820,
+          "aten.permute.default": 21440,
+          "aten.view.default": 1648,
+          "aten.group_norm.default": 500,
+          "aten.silu.default": 5540,
+          "aten.add.Tensor": 20985,
+          "aten.arange.default": 254,
+          "aten.div.Tensor": 935,
+          "aten.rsub.Scalar": 254,
+          "aten.mul.Tensor": 36870,
+          "aten.cat.default": 20743,
+          "aten.chunk.default": 15121,
+          "aten.clamp.default": 2,
+          "aten.exp.default": 256,
+          "aten.reshape.default": 280,
+          "aten.linear.default": 30520,
+          "aten.expand.default": 534,
+          "aten.zeros_like.default": 140,
+          "aten.arange.start": 420,
+          "aten.sub.Tensor": 420,
+          "aten.meshgrid.indexing": 140,
+          "aten.stack.default": 140,
+          "aten.flatten.using_ints": 5320,
+          "aten.unsqueeze.default": 1348,
+          "aten.new_zeros.default": 140,
+          "aten.tile.default": 140,
+          "aten.cos.default": 140,
+          "aten.sin.default": 267,
+          "aten.rms_norm.default": 20160,
+          "aten.unflatten.int": 15120,
+          "aten.neg.default": 10080,
+          "aten.scaled_dot_product_attention.default": 5040,
+          "aten.dropout.default": 5040,
+          "aten.layer_norm.default": 140,
+          "aten.contiguous.default": 140,
+          "aten.conv1d.default": 256,
+          "aten._weight_norm.default": 135,
+          "aten.conv_transpose1d.default": 134,
+          "aten.reciprocal.default": 127,
+          "aten.pow.Tensor_Scalar": 127
+        },
+        "boundary_calls": {
+          "diffusers.models.autoencoders.autoencoder_kl_minimax_h3_audio.kaiser_sinc_filter1d": 254,
+          "MiniMaxH3VideoRotaryPosEmbed.__init__": 1,
+          "diffusers.modular_pipelines.minimax_h3.encoders.encode_vae_condition": 1,
+          "NineToothedRNG.posterior": 1,
+          "MiniMaxH3PrepareLayoutStep.build_packed_sequence": 1,
+          "diffusers.modular_pipelines.minimax_h3.before_denoise.randn_tensor": 3,
+          "MiniMaxH3Scheduler.scale_noise": 1,
+          "MiniMaxH3Scheduler.set_timesteps": 2,
+          "MiniMaxH3Scheduler.step": 98,
+          "MiniMaxH3VideoDecodeStep.__call__": 1,
+          "MiniMaxH3AudioDecodeStep.__call__": 1
+        }
+      },
+      {
+        "seed": 43,
+        "command": [
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/build/venv/bin/python",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/scripts/run.py",
+          "fl2va",
+          "--model-path",
+          "/tmp/ssb-cjh-1107141/model/MiniMax-H3/diffusers",
+          "--first-frame",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/inputs/competition-first-frame.png",
+          "--text",
+          "A dog falls asleep",
+          "--gpus",
+          "0,1,2,3,4,5,6,7",
+          "--num-frames",
+          "124",
+          "--steps",
+          "50",
+          "--seed",
+          "43",
+          "--output",
+          "/public/home/acvduipmem/xsh/ssb-cjh-public-reproduction-20261114/buxihuanchiyu/outputs/offline-validation/continuous/case-01-seed-43/generated.mp4"
+        ],
+        "exit": 0,
+        "wall_seconds": 1333.744294643402,
+        "video_sha256": "2b8dd6c8039ff9d91199b46acd381e03cee2d5d309c60bcf5451f5eb909bf0dd",
+        "video_bytes": 1984393,
+        "timings": {
+          "model.pipeline_create": {
+            "seconds": 0.005
+          },
+          "model.condition_encoder_create_and_load": {
+            "seconds": 23.388
+          },
+          "model.transformer_create_and_load": {
+            "seconds": 15.218
+          },
+          "model.remaining_components_create_and_load": {
+            "seconds": 6.446
+          },
+          "input.files_and_references": {
+            "seconds": 0.035
+          },
+          "input.arguments": {
+            "seconds": 0.0
+          },
+          "compute.condition_encoder": {
+            "seconds": 2.032
+          },
+          "input.video_vae_encode": {
+            "seconds": 12.844
+          },
+          "input.audio_vae_encode": {
+            "seconds": 0.0,
+            "calls": 0
+          },
+          "compute.h3_transformer": {
+            "seconds": 1061.388,
+            "calls": 49
+          },
+          "output.video_vae_decode": {
+            "seconds": 131.201
+          },
+          "output.audio_vae_decode": {
+            "seconds": 7.369
+          },
+          "generation.pipeline_total": {
+            "seconds": 1227.556
+          },
+          "output.media_encode": {
+            "seconds": 1.722
+          },
+          "total.end_to_end": {
+            "seconds": 1274.372
+          },
+          "pipeline.other_preprocess_scheduler": {
+            "seconds": 12.722
+          }
+        },
+        "vae_op_counts": {
+          "aten.to.dtype": 53347,
+          "aten.slice.Tensor": 21932,
+          "aten.pad.default": 1454,
+          "aten.conv3d.default": 820,
+          "aten.permute.default": 21440,
+          "aten.view.default": 1648,
+          "aten.group_norm.default": 500,
+          "aten.silu.default": 5540,
+          "aten.add.Tensor": 20985,
+          "aten.arange.default": 254,
+          "aten.div.Tensor": 935,
+          "aten.rsub.Scalar": 254,
+          "aten.mul.Tensor": 36870,
+          "aten.cat.default": 20743,
+          "aten.chunk.default": 15121,
+          "aten.clamp.default": 2,
+          "aten.exp.default": 256,
+          "aten.reshape.default": 280,
+          "aten.linear.default": 30520,
+          "aten.expand.default": 534,
+          "aten.zeros_like.default": 140,
+          "aten.arange.start": 420,
+          "aten.sub.Tensor": 420,
+          "aten.meshgrid.indexing": 140,
+          "aten.stack.default": 140,
+          "aten.flatten.using_ints": 5320,
+          "aten.unsqueeze.default": 1348,
+          "aten.new_zeros.default": 140,
+          "aten.tile.default": 140,
+          "aten.cos.default": 140,
+          "aten.sin.default": 267,
+          "aten.rms_norm.default": 20160,
+          "aten.unflatten.int": 15120,
+          "aten.neg.default": 10080,
+          "aten.scaled_dot_product_attention.default": 5040,
+          "aten.dropout.default": 5040,
+          "aten.layer_norm.default": 140,
+          "aten.contiguous.default": 140,
+          "aten.conv1d.default": 256,
+          "aten._weight_norm.default": 135,
+          "aten.conv_transpose1d.default": 134,
+          "aten.reciprocal.default": 127,
+          "aten.pow.Tensor_Scalar": 127
+        },
+        "boundary_calls": {
+          "diffusers.models.autoencoders.autoencoder_kl_minimax_h3_audio.kaiser_sinc_filter1d": 254,
+          "MiniMaxH3VideoRotaryPosEmbed.__init__": 1,
+          "diffusers.modular_pipelines.minimax_h3.encoders.encode_vae_condition": 1,
+          "NineToothedRNG.posterior": 1,
+          "MiniMaxH3PrepareLayoutStep.build_packed_sequence": 1,
+          "diffusers.modular_pipelines.minimax_h3.before_denoise.randn_tensor": 3,
+          "MiniMaxH3Scheduler.scale_noise": 1,
+          "MiniMaxH3Scheduler.set_timesteps": 2,
+          "MiniMaxH3Scheduler.step": 98,
+          "MiniMaxH3VideoDecodeStep.__call__": 1,
+          "MiniMaxH3AudioDecodeStep.__call__": 1
+        }
+      }
+    ],
+    "boundary_test_count": 232,
+    "native_test_count": 88,
+    "operator_audit_scope": "fixed Base FL2VA; full VAE strict dispatch and boundary comparisons, plus rebuilt native source/dispatch provenance",
+    "organizer_acceptance_established": false,
+    "resources": {
+      "scope": "node-level sysfs VRAM samples during these two consecutive native cases; not exact process peaks",
+      "sampling_period_seconds": 10,
+      "sample_count": 286,
+      "per_card_max_GiB": {
+        "card1": 36.11951446533203,
+        "card2": 27.145069122314453,
+        "card3": 27.14507293701172,
+        "card4": 27.145069122314453,
+        "card5": 27.145065307617188,
+        "card6": 27.14507293701172,
+        "card7": 27.145065307617188,
+        "card8": 26.957561492919922
+      },
+      "single_card_max_GiB": 36.11951446533203,
+      "maximum_simultaneous_sum_GiB": 225.94749069213867,
+      "continuous_start_epoch": 1794630838.9440024,
+      "continuous_end_epoch": 1794633700.6847875
+    }
+  },
+  "organizer_acceptance_established": false,
+  "network_preparation_fallback_verified": true,
+  "network_preparation_fallback_evidence": "evidence/NETWORK_PREPARATION_20261114.json"
+}
