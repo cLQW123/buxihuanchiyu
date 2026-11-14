@@ -1323,5 +1323,11 @@
   },
   "organizer_acceptance_established": false,
   "network_preparation_fallback_verified": true,
-  "network_preparation_fallback_evidence": "evidence/NETWORK_PREPARATION_20261114.json"
+  "network_preparation_fallback_evidence": "evidence/NETWORK_PREPARATION_20261114.json",
+  "historical_input_scope": {
+    "extra_local_docx_was_supplied": true,
+    "first_frame_was_extracted_from_local_report": true,
+    "not_a_github_only_input_closure_test": true,
+    "superseded_input_closure_evidence": "evidence/BUNDLED_INPUT_REPRODUCTION_20261114.json"
+  }
 }

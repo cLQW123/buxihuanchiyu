@@ -1,10 +1,10 @@
 # MiniMax H3 FL2VA 八卡适配
 
-源码重建、330项数值与运行时检查、原版官方参考生成、seed42/43两例连续完整生成、官方SSIM比较及严格音视频规格检查全部通过，所有阶段退出0。最终SSIM为**92.200%**，两例均为768×928、124帧、24 FPS、H.264/yuv420p及32 kHz双声道AAC。
+源码重建、330项数值与运行时检查、原版官方参考生成、seed42/43两例连续完整生成、官方SSIM比较及严格音视频规格检查全部通过，所有阶段退出0。最终SSIM为**92.993%**，两例均为768×928、124帧、24 FPS、H.264/yuv420p及32 kHz双声道AAC。
 
-本轮直接从GitHub拉取固定公开提交并重新下载三个Release依赖资产，在新目录完成独立安装、全部源码重建和完整生成；计算源码无需修改。逐项证据见[evidence/PUBLIC_REPRODUCTION_20261114.json](evidence/PUBLIC_REPRODUCTION_20261114.json)，完整日志和本轮输出见Release资产`sgcup-public-reproduction-20261114.tar.gz`。
+本轮从GitHub取得公开源码及仓库自带首帧，并从本仓库Release重新下载及校验三个依赖资产。未提供DOCX、手工图片、旧参考视频或旧构建产物；在新目录离线创建环境、重建全部源码并完整生成。逐项证据见[evidence/BUNDLED_INPUT_REPRODUCTION_20261114.json](evidence/BUNDLED_INPUT_REPRODUCTION_20261114.json)，完整日志和输出见Release资产`sgcup-bundled-input-validation-20261114.tar.gz`。
 
-实际完整运行的集成提交为`db19655d6a800046c3e534ef40cedfcd16cafb7b`；本次发布后续仅更新说明、验证证据和依赖资产元数据，参与构建和推理的代码保持一致。组件分支及完整commit由`source-lock.json`固定。最终日志、配置、退出码、输出示例和依赖包见GitHub Release `offline-runtime-20261114`。
+实际完整运行提交为`01692672cc94c59d13dc6757deaf640f863881e8`；后续发布仅更新说明、验证证据和清单。组件提交由`source-lock.json`固定。模型权重及厂商Torch、DTK、GCC、驱动等基础环境仍由赛事提供，所需路径和来源见[材料清单](reproduce/材料清单.md)。
 
 ## 准备源码和离线依赖
 
@@ -63,4 +63,4 @@ InfiniLM负责Qwen3-VL条件编码、H3模型、权重加载及八卡调度，In
 
 Diffusers固定官方`0.40.0.dev0`提交`d5baa4fb548294f47dbca49890abd4b291204c60`，其1022个Python文件与公开源码一致，包含VAE精度衔接的官方修复。最终参考没有自行精度补丁。
 
-本轮程序端到端计时：seed42为1465.574秒，seed43为1274.372秒，官方参考为594.012秒；当前尚无端到端加速。第一次包括冷编译开销，两例进程墙钟时间另有记录。实现覆盖固定Base FL2VA与首帧锚点；模型实际12 taps滤波器及24/48 taps对照通过，额外128 taps探索未达到误差门槛。完整实现边界与限制见`evidence/NUMERICAL_BOUNDARY_AUDIT_20261114.md`，复现细节见`reproduce/干净环境复现.md`。
+本轮程序端到端计时：seed42为1458.606秒，seed43为1276.309秒，官方参考为593.624秒；当前尚无端到端加速。第一次包括冷编译开销，两例进程墙钟时间另有记录。实现覆盖固定Base FL2VA与首帧锚点；模型实际12 taps滤波器及24/48 taps对照通过，额外128 taps探索未达到误差门槛。完整实现边界与限制见`evidence/NUMERICAL_BOUNDARY_AUDIT_20261114.md`，复现细节见`reproduce/干净环境复现.md`。
