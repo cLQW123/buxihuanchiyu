@@ -14,6 +14,7 @@ import sysconfig
 from pip._vendor.packaging.markers import default_environment
 from pip._vendor.packaging.requirements import Requirement
 from pip._vendor.packaging.utils import canonicalize_name
+from check_inputs import bundled_first_frame
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -65,6 +66,7 @@ def main():
     args = parser.parse_args()
     if sys.version_info[:2] != (3, 11) or sys.platform != 'linux':
         raise RuntimeError('Run setup with competition Linux CPython 3.11')
+    bundled_first_frame()
     for name, value in vars(args).items():
         setattr(args, name, value.resolve(strict=True))
     lock = json.loads((ROOT / 'dependencies/offline-lock.json').read_text())

@@ -9,10 +9,12 @@ import os
 from pathlib import Path
 import runpy
 import sys
+from check_inputs import default_frame_arguments, first_frame_record
 
 from validate_runtime_policy import collect_runtime_policy
 
 faulthandler.enable()
+sys.argv[1:]=default_frame_arguments(sys.argv[1:])
 if os.environ.get('SGCUP_TRACE_TIMEOUT'):
     faulthandler.dump_traceback_later(int(os.environ['SGCUP_TRACE_TIMEOUT']), repeat=True)
 import torch
@@ -75,6 +77,11 @@ manifest={'argv':sys.argv[1:],'entry_sha256':expected,'native_sha256':hashlib.sh
           'core_sha256':hashlib.sha256(core_module.read_bytes()).hexdigest(),
           'devices':8,'fallback':'unsupported neural numerical operators raise',
           'runtime_policy':runtime_policy}
+if sys.argv[1:2]==['fl2va']:
+    frame_arg=next((arg.split('=',1)[1] for arg in sys.argv if arg.startswith('--first-frame=')),None)
+    if frame_arg is None:
+        frame_arg=sys.argv[sys.argv.index('--first-frame')+1]
+    manifest['first_frame']=first_frame_record(frame_arg)
 manifest['source_modules'] = {}
 for name, project in (('ninetoothed', 'ninetoothed'), ('ntops', 'ntops'),
                       ('infinilm', 'InfiniLM'), ('infiniop.ops.vae_support.ninetoothed.support', 'InfiniCore')):

@@ -7,14 +7,17 @@ from pathlib import Path
 import subprocess
 import sys
 import time
+from check_inputs import resolve_first_frame, model_record
 
 parser=argparse.ArgumentParser()
 parser.add_argument('--model-path',required=True)
-parser.add_argument('--first-frame',required=True)
+parser.add_argument('--first-frame',help='默认使用仓库assets中的统一首帧；可显式指定其他赛事输入')
 parser.add_argument('--output-dir',required=True)
 parser.add_argument('--seeds',default='42,43')
 parser.add_argument('--text',default='A dog falls asleep')
 args=parser.parse_args()
+args.first_frame=str(resolve_first_frame(args.first_frame))
+model_record(args.model_path)
 root=Path(os.environ['SGCUP_ROOT'])
 output=Path(args.output_dir).resolve()
 output.mkdir(parents=True,exist_ok=True)

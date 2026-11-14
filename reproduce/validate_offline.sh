@@ -4,7 +4,7 @@ set -euo pipefail
 task_repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$task_repo"
 : "${MODEL_PATH:?Set the original competition diffusers model path}"
-: "${FIRST_FRAME:?Set the unchanged competition first-frame path}"
+export FIRST_FRAME="${FIRST_FRAME:-$task_repo/assets/competition-first-frame.png}"
 source build/activate.sh
 task_output="$task_repo/outputs/offline-validation"
 mkdir -p "$task_output"
@@ -13,6 +13,8 @@ if test -e "$task_output/stages.jsonl"; then
     exit 1
 fi
 export SGCUP_VALIDATION_OUTPUT="$task_output"
+python scripts/check_inputs.py --model-path "$MODEL_PATH" \
+    --first-frame "$FIRST_FRAME" --output "$task_output/inputs.json"
 python - <<'PY'
 import hashlib, json, os
 from pathlib import Path

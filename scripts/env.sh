@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 sgcup_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 export SGCUP_ROOT="$sgcup_root"
+export FIRST_FRAME="${FIRST_FRAME:-$sgcup_root/assets/competition-first-frame.png}"
 export INFINI_ROOT="${SGCUP_PREFIX:-$sgcup_root/build/install}"
 export SGCUP_COMPILER_PYTHONPATH="${SGCUP_COMPILER_PYTHONPATH:-$sgcup_root/build/competition-python}"
 # Retain the competition dependency paths while dropping prior model/source

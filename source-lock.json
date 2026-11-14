@@ -27,7 +27,7 @@
     }
   },
   "source_manifest": "evidence/source-manifest-20261113-offline.json",
-  "source_manifest_sha256": "64e6e89c17453aaf2d4fb50148589aec1db77b08e784fc7acfd4d5cc0af5fc65",
-  "source_manifest_file_count": 6207,
+  "source_manifest_sha256": "5ad30354bd90a1da41e5c8d7f6136e78ff30966571a55079c8ceecaf363eb2d8",
+  "source_manifest_file_count": 6214,
   "source_manifest_scope": "tracked implementation, dependency locks and documentation; source-lock and evidence excluded to avoid recursive hashes"
 }

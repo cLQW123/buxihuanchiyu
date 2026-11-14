@@ -8,8 +8,9 @@ from pathlib import Path
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--triton-source', type=Path, required=True,
-                    help='Official competition Triton package directory containing __init__.py')
+parser.add_argument('--triton-source', type=Path,
+                    default=Path(__file__).resolve().parent.parent/'inputs/vendor-triton/triton',
+                    help='默认使用公开Release解包的完整厂商Triton')
 args = parser.parse_args()
 source = args.triton_source.resolve(strict=True)
 initial = source / '__init__.py'

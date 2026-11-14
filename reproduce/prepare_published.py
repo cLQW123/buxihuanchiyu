@@ -39,6 +39,11 @@ def export_archive(checkout, destination, expected_commit,
         commits[project + '/' + nested] = pin
 
     expected = json.loads((checkout / lock['source_manifest']).read_text())
+    from importlib.util import module_from_spec, spec_from_file_location
+    spec = spec_from_file_location('checkout_inputs', checkout/'scripts/check_inputs.py')
+    inputs = module_from_spec(spec)
+    spec.loader.exec_module(inputs)
+    inputs.bundled_first_frame()
     for relative, sha in expected.items():
         path = checkout / relative
         assert path.is_file(), relative
@@ -75,6 +80,7 @@ def export_archive(checkout, destination, expected_commit,
         entry.size = len(provenance)
         entry.mode = 0o644
         output.addfile(entry, io.BytesIO(provenance))
+    assert 'assets/competition-first-frame.png' in exported
     result = {'integration_commit': expected_commit, 'publication_status': publication_status,
               'archive': str(destination.resolve()),
               'bytes': destination.stat().st_size,

@@ -8,46 +8,22 @@
 
 ## 准备源码和离线依赖
 
-从联网准备、内嵌首帧提取、完整传输到离线八卡执行及最终状态检查的完整步骤见[报告逐步复现](reproduce/报告逐步复现.md)。报告中的`/path/to/...`仅替换基础环境、模型和存储路径。
+从联网准备、仓库首帧校验、完整传输到离线八卡执行及最终状态检查的完整步骤见[报告逐步复现](reproduce/报告逐步复现.md)。报告中的`/path/to/...`仅替换基础环境、模型和存储路径。
 
 在联网准备机器执行：
 
 ```bash
-set -euo pipefail
-python - <<'PY'
-import sys, tarfile
-assert sys.version_info >= (3, 11, 4)
-assert hasattr(tarfile, 'data_filter')
-PY
 git clone https://github.com/cLQW123/buxihuanchiyu.git
 cd buxihuanchiyu
-git checkout db19655d6a800046c3e534ef40cedfcd16cafb7b
+git checkout --detach origin/main
 bash scripts/prepare_sources.sh
-if ! python scripts/fetch_dependencies.py; then
-  python - <<'PYFETCH'
-import json, shutil, urllib.request
-from pathlib import Path
-m = json.loads(
-    Path('dependencies/artifacts.json').read_text())
-a = Path('inputs/archives')
-a.mkdir(parents=True, exist_ok=True)
-u = 'https://github.com/' + m['repository']
-u += '/releases/download/' + m['release_tag'] + '/'
-def fetch(item):
-    r = urllib.request.Request(u + item['file'],
-        headers={'User-Agent': 'sgcup-offline'})
-    with urllib.request.urlopen(r, timeout=60) as src:
-        with (a/item['file']).open('wb') as dst:
-            shutil.copyfileobj(src, dst, 4*1024*1024)
-list(map(fetch, m['artifacts']))
-PYFETCH
-  python scripts/fetch_dependencies.py --offline
-fi
+python scripts/fetch_dependencies.py
+python scripts/check_inputs.py
 ```
 
 `prepare_sources.sh`检出固定的InfiniCore、InfiniLM、NineToothed、NTops及必需头文件子模块，核对源码清单并写入`SOURCE_PROVENANCE.json`。下载脚本获取73个固定wheel、完整厂商Triton包及本次实测xmake工具，按`dependencies/artifacts.json`逐项校验SHA256。保留各依赖中的许可证。也可通过`--archive-dir /path/to/assets --offline`校验已有资产。
 
-将完整源码目录和`inputs/`一起移入比赛离线节点。统一基础环境提供Linux x86_64、CPython 3.11、厂商Torch 2.9.0+das.opt1.dtk2604、DTK 26.04、GCC 11.4.0和驱动；其他Python依赖以及xmake随资产提供。固定模型权重和统一首帧由赛事路径读取，不随工程重复打包。
+将完整源码目录和`inputs/`一起移入比赛离线节点。统一基础环境提供Linux x86_64、CPython 3.11、厂商Torch 2.9.0+das.opt1.dtk2604、DTK 26.04、GCC 11.4.0和驱动；其他Python依赖以及xmake随资产提供。统一首帧已随Git仓库提供于`assets/competition-first-frame.png`，默认运行不需要DOCX或本地额外图片；固定模型权重仍由赛事环境提供。材料来源和必须提供的基础环境见[材料清单](reproduce/材料清单.md)。
 
 ## 创建独立环境
 
@@ -69,9 +45,10 @@ fi
 
 ```bash
 export MODEL_PATH=/path/to/MiniMax-H3/diffusers
-export FIRST_FRAME=/path/to/competition-first-frame.png
+unset FIRST_FRAME REPORT_DOCX
 unset REFERENCE_VIDEO REFERENCE_PROVENANCE
 bash reproduce/validate_offline.sh
+python scripts/check_validation.py
 ```
 
 入口从源码重建InfiniCore基础库、九齿AOT算子、Attention注册插件及InfiniLM/InfiniCore Python扩展，完成6项RoPE、4项Qwen RMSNorm、88项八卡原生分发和232项辅助计算对照。随后在独立子进程中运行未修改的官方`--legacy`入口，新生成参考视频，再连续生成seed42、43两例，运行原版比较脚本和两例严格媒体检查。参数固定为`A dog falls asleep`、8卡、124帧、50个调度点及默认尺寸；50个点含终止零点，实际每例执行49次H3更新。每例重新执行模型计算。
@@ -82,7 +59,7 @@ bash reproduce/validate_offline.sh
 
 InfiniLM负责Qwen3-VL条件编码、H3模型、权重加载及八卡调度，InfiniCore提供原有GEMM、运行时和通信。新增或重写的Attention、KV缓存、SwiGLU、RoPE、Qwen RMSNorm、卷积、归一化、神经VAE、随机采样、浮点坐标与调度算术均由NineToothed编译链生成。严格VAE分发对不支持的数值计算直接报错。整数行索引、存储视图、文件读取、分词和媒体封装使用基础辅助组件。
 
-`scripts/env.sh`固定`INFINILM_HYGON_NINETOOTHED_FLASH=1`和`SGCUP_TP_FP32=0`，原生库与AOT来源在运行前检查。Attention使用本工程九齿实现；张量并行线性层沿用InfiniCore GEMM及allreduce。NTops仅提供九齿排布表达。原始权重、统一输入、官方入口和比较脚本保持不变。
+`scripts/env.sh`固定`INFINILM_HYGON_NINETOOTHED_FLASH=1`和`SGCUP_TP_FP32=0`，原生库与AOT来源在运行前检查。Attention使用本工程九齿实现；张量并行线性层沿用InfiniCore GEMM及allreduce。NTops仅提供九齿排布表达。原始权重、统一输入文件字节、官方入口和比较脚本保持不变。
 
 Diffusers固定官方`0.40.0.dev0`提交`d5baa4fb548294f47dbca49890abd4b291204c60`，其1022个Python文件与公开源码一致，包含VAE精度衔接的官方修复。最终参考没有自行精度补丁。
 

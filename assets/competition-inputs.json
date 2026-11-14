@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "first_frame": {
+    "path": "assets/competition-first-frame.png",
+    "bytes": 1393139,
+    "sha256": "b97c3487ca35da0c803fba3787cf2b7f936d3d4595548ae5b7b576c19934be54",
+    "width": 800,
+    "height": 965,
+    "source": "赛事提供的初赛报告模板内嵌统一输入图 word/media/image1.png",
+    "purpose": "公开Base FL2VA样例的原始首帧",
+    "transformation": "无；原样保存PNG文件字节",
+    "publication": "按仓库所有者要求随源码提供；不需要DOCX文件"
+  },
+  "prompt": "A dog falls asleep",
+  "model": "赛事提供的MiniMax-H3 Base FL2VA配套Diffusers checkpoint；权重不随仓库重复发布"
+}

@@ -21,3 +21,4 @@ for name, record in lock['projects'].items():
 print('PINNED_SOURCE_CHECKOUT_READY')
 PY
 python "$sgcup_root/scripts/write_checkout_provenance.py"
+python "$sgcup_root/scripts/check_inputs.py"

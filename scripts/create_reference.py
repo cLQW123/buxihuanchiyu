@@ -9,6 +9,7 @@ from pathlib import Path
 import subprocess
 import sys
 import time
+from check_inputs import resolve_first_frame, model_record
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -23,7 +24,7 @@ def digest(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--model-path', type=Path, required=True)
-    parser.add_argument('--first-frame', type=Path, required=True)
+    parser.add_argument('--first-frame', type=Path, help='默认使用仓库随附的统一首帧')
     parser.add_argument('--output-dir', type=Path, required=True)
     args = parser.parse_args()
     output = args.output_dir.resolve()
@@ -44,7 +45,8 @@ def main():
             verified += 1
     assert verified == dependency['python_files_verified_byte_identical_to_official_source']
     model = args.model_path.resolve(strict=True)
-    first_frame = args.first_frame.resolve(strict=True)
+    model_record(model)
+    first_frame = resolve_first_frame(args.first_frame)
     video = output / 'reference.mp4'
     command = [sys.executable, str(entry), 'fl2va', '--model-path', str(model),
                '--first-frame', str(first_frame), '--text', 'A dog falls asleep',
