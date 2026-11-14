@@ -1,10 +1,10 @@
 # MiniMax H3 FL2VA 八卡适配
 
-2026年11月14日在赛事f12r2n14独占八卡Hygon gfx936节点完成全新隔离环境验证。源码重建、330项数值与运行时检查、原版官方参考生成、seed42/43两例连续完整生成、官方SSIM比较及严格音视频规格检查全部通过，所有阶段退出0。最终SSIM为**92.200%**，两例均为768×928、124帧、24 FPS、H.264/yuv420p及32 kHz双声道AAC。
+源码重建、330项数值与运行时检查、原版官方参考生成、seed42/43两例连续完整生成、官方SSIM比较及严格音视频规格检查全部通过，所有阶段退出0。最终SSIM为**92.200%**，两例均为768×928、124帧、24 FPS、H.264/yuv420p及32 kHz双声道AAC。
 
-本轮直接从GitHub匿名拉取固定公开提交并重新下载三个Release依赖资产，在新目录完成独立安装、全部源码重建和完整生成；计算源码无需修改。逐项证据见[evidence/PUBLIC_REPRODUCTION_20261114.json](evidence/PUBLIC_REPRODUCTION_20261114.json)，完整日志和本轮输出见Release资产`sgcup-public-reproduction-20261114.tar.gz`。
+本轮直接从GitHub拉取固定公开提交并重新下载三个Release依赖资产，在新目录完成独立安装、全部源码重建和完整生成；计算源码无需修改。逐项证据见[evidence/PUBLIC_REPRODUCTION_20261114.json](evidence/PUBLIC_REPRODUCTION_20261114.json)，完整日志和本轮输出见Release资产`sgcup-public-reproduction-20261114.tar.gz`。
 
-实际完整运行的集成提交为`db19655d6a800046c3e534ef40cedfcd16cafb7b`；本次发布后续仅更新说明、验证证据和依赖资产元数据，参与构建和推理的代码保持一致。组件分支及完整commit由`source-lock.json`固定。最终日志、配置、退出码、输出示例和依赖包见GitHub Release `offline-runtime-20261114`。最终评测由赛事方统一执行，本仓库列出实测技术结果。
+实际完整运行的集成提交为`db19655d6a800046c3e534ef40cedfcd16cafb7b`；本次发布后续仅更新说明、验证证据和依赖资产元数据，参与构建和推理的代码保持一致。组件分支及完整commit由`source-lock.json`固定。最终日志、配置、退出码、输出示例和依赖包见GitHub Release `offline-runtime-20261114`。
 
 ## 准备源码和离线依赖
 
@@ -76,7 +76,7 @@ bash reproduce/validate_offline.sh
 
 入口从源码重建InfiniCore基础库、九齿AOT算子、Attention注册插件及InfiniLM/InfiniCore Python扩展，完成6项RoPE、4项Qwen RMSNorm、88项八卡原生分发和232项辅助计算对照。随后在独立子进程中运行未修改的官方`--legacy`入口，新生成参考视频，再连续生成seed42、43两例，运行原版比较脚本和两例严格媒体检查。参数固定为`A dog falls asleep`、8卡、124帧、50个调度点及默认尺寸；50个点含终止零点，实际每例执行49次H3更新。每例重新执行模型计算。
 
-如赛方另有固定参考，可同时设置`REFERENCE_VIDEO`与`REFERENCE_PROVENANCE`；来源记录必须明确区分赛方标准、原版官方执行和兼容参考。所有阶段日志、PID、退出码、计时、参数和来源证明写入`outputs/offline-validation/`，成功后生成`validation.json`。
+如赛方另有固定参考，可同时设置`REFERENCE_VIDEO`与`REFERENCE_PROVENANCE`；所有阶段日志、PID、退出码、计时、参数和来源证明写入`outputs/offline-validation/`，成功后生成`validation.json`。
 
 ## 实现与范围
 
