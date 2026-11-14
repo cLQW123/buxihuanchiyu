@@ -12,9 +12,36 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT/'scripts'))
 import check_inputs
 import fetch_dependencies
+import package_offline
 
 
 class InputMaterials(unittest.TestCase):
+    def test_portable_package_excludes_mac_metadata_and_keeps_required_materials(self):
+        import tarfile
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)/'source'
+            root.mkdir()
+            for name in ('.git', 'inputs/wheelhouse', 'inputs/vendor-triton', 'inputs/vendor-xmake', 'inputs/archives', 'assets'):
+                (root/name).mkdir(parents=True, exist_ok=True)
+            for name in ('SOURCE_PROVENANCE.json', '.git/HEAD', 'inputs/dependency-receipt.json',
+                         'assets/competition-first-frame.png', 'inputs/wheelhouse/example.whl',
+                         'inputs/vendor-xmake/tool.lua', 'inputs/vendor-xmake/._tool.lua',
+                         '.DS_Store', 'inputs/archives/cache.tar'):
+                (root/name).write_bytes(b'test')
+            output = package_offline.package_checkout(root, Path(directory)/'portable.tar')
+            with tarfile.open(output) as archive:
+                names = archive.getnames()
+                self.assertIn('buxihuanchiyu/.git/HEAD', names)
+                self.assertIn('buxihuanchiyu/assets/competition-first-frame.png', names)
+                self.assertIn('buxihuanchiyu/inputs/vendor-xmake/tool.lua', names)
+                self.assertIn('buxihuanchiyu/inputs/wheelhouse/example.whl', names)
+                self.assertNotIn('buxihuanchiyu/inputs/vendor-xmake/._tool.lua', names)
+                self.assertNotIn('buxihuanchiyu/.DS_Store', names)
+                self.assertNotIn('buxihuanchiyu/inputs/archives/cache.tar', names)
+            (root/'build').mkdir()
+            with self.assertRaises(RuntimeError):
+                package_offline.package_checkout(root, Path(directory)/'stale.tar')
+
     def test_fresh_clone_needs_no_report(self):
         with patch.dict(os.environ, {}, clear=True):
             record = check_inputs.first_frame_record()

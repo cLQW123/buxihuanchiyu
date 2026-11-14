@@ -6165,7 +6165,7 @@
   "Projects/ntops/tests/test_tanh.py": "551798ee29eae3411b0dc3c44e0883bfe0c308256250062bc27007ddde95ecc7",
   "Projects/ntops/tests/test_threshold.py": "fd8ad0408298664902478c8c89ae48a0e4e6b70e5d86e0ada634bbf139bb7001",
   "Projects/ntops/tests/utils.py": "0e63756027051ee853e518f680bf35a15117a03678029076cdf5308d44f79503",
-  "README.md": "abf007c7a19d94a383869916d5f979220d5a2c44df107d0ead6608d1b26855c0",
+  "README.md": "4852d1a1e53646531215aaaf481951fa20f61d7995b4603661e47348de394355",
   "assets/competition-first-frame.png": "b97c3487ca35da0c803fba3787cf2b7f936d3d4595548ae5b7b576c19934be54",
   "assets/competition-inputs.json": "0576d09356d54182c9b0bb918628737fe4c3236c35b93ce5ffdf759b00df2d34",
   "assets/\u8bf4\u660e.md": "55b444463ab7a8088e40693cc81a2696d1d4e23148fb1c2a9da5685b5e31f746",
@@ -6187,8 +6187,8 @@
   "reproduce/run_offline.sh": "a2728b9a5b43bca6faed310990484df4f9c3cc15cf9ca28436e1b7eca4bd5d8e",
   "reproduce/validate_offline.sh": "78e0c9b708e9835038f47790edd3345cefc5c363d73a185f70156b5cf1a7eed9",
   "reproduce/\u5e72\u51c0\u73af\u5883\u590d\u73b0.md": "db25cdb329b1be1d473ef8e3e5179ee909b362899371cd22d477269ab7e3bf71",
-  "reproduce/\u62a5\u544a\u9010\u6b65\u590d\u73b0.md": "505779bd3f5d4d597e68599b9647f84232386931f18935097c8f211fdb10fcdc",
-  "reproduce/\u6750\u6599\u6e05\u5355.md": "65b3aeed8837cb118d59077d425548a2f7ac35d3b452013adeab0300d01dcdfc",
+  "reproduce/\u62a5\u544a\u9010\u6b65\u590d\u73b0.md": "ff6f1b624960855a960e70c39c4ea50393c826df2c3bfde1b77fc877df1e2db9",
+  "reproduce/\u6750\u6599\u6e05\u5355.md": "0ba970a4b8623bd83a67dddb0be5e661afb85f5bb439b2ca381c2f3bae4c8dee",
   "scripts/build.sh": "5f7854f767a58bbb77daf134709cb372c841af37d3bf34de1fefb32fd6cd5d4a",
   "scripts/build_native.py": "d7c15176732182f063785373b8b3bcb620f7ebbdc8eacf34e73acc4aecda9b1b",
   "scripts/build_python_core.py": "e93e8d55474d51c941a2040a7c38553af4bf0a8503308dd75fc23f1ef67bf77a",
@@ -6200,6 +6200,7 @@
   "scripts/create_source_manifest.py": "a787c8fb8142489ec27487b78c490d83b987184d06d3e80ee98662455939c2a1",
   "scripts/env.sh": "a78c5af10ff2f436ce71aae14eb02766287b75102d90559a199efd0e862ff501",
   "scripts/fetch_dependencies.py": "84f560fba54b266bfdb6dff3c4287fd052841f5d017338bedb3fe625b09d27c9",
+  "scripts/package_offline.py": "ddf40ccab3df75444ea3d16bb0ed7f233135893226db515ab5f06188db5940d9",
   "scripts/prepare_compiler_dependency.py": "dc519a2af5e9da3a5d7a58ebe7953baf021e209b8ea8fa8726f7755d9f466d67",
   "scripts/prepare_sources.sh": "868a223241e4b598b336d2d353c933e40a33f954148103edb830328cbb1890be",
   "scripts/run.py": "b7cf313bf9802e178937f907db1489f754fd08620b5573699eff16627e92ae04",
@@ -6212,5 +6213,5 @@
   "scripts/validate_runtime_policy.py": "d01ebccabc0a57c96bdd4b261869b717e2dfcdf12aa748f53a56b0b022e9cd03",
   "scripts/verify_media.py": "8bf3049f0529b7e41ab875d73f54582db54b513ce161c0448ccdf0039b258495",
   "scripts/write_checkout_provenance.py": "90be27670df43651f50fb73675e26cd0a1d5236445c18666f372590103948ffb",
-  "tests/test_input_materials.py": "2caff6c4d361c31c1c8c9102b79de0385d4bfd10d779cd7ba36e793b7ec4a1f9"
+  "tests/test_input_materials.py": "5ed9709a90f6863d07ddfdc6d624cd7cdf6299816c1f318d06b22a4e0faf865e"
 }

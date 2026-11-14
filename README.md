@@ -23,7 +23,7 @@ python scripts/check_inputs.py
 
 `prepare_sources.sh`检出固定的InfiniCore、InfiniLM、NineToothed、NTops及必需头文件子模块，核对源码清单并写入`SOURCE_PROVENANCE.json`。下载脚本获取73个固定wheel、完整厂商Triton包及本次实测xmake工具，按`dependencies/artifacts.json`逐项校验SHA256。保留各依赖中的许可证。也可通过`--archive-dir /path/to/assets --offline`校验已有资产。
 
-将完整源码目录和`inputs/`一起移入比赛离线节点。统一基础环境提供Linux x86_64、CPython 3.11、厂商Torch 2.9.0+das.opt1.dtk2604、DTK 26.04、GCC 11.4.0和驱动；其他Python依赖以及xmake随资产提供。统一首帧已随Git仓库提供于`assets/competition-first-frame.png`，默认运行不需要DOCX或本地额外图片；固定模型权重仍由赛事环境提供。材料来源和必须提供的基础环境见[材料清单](reproduce/材料清单.md)。
+联网准备后执行`python scripts/package_offline.py --output ../buxihuanchiyu-source-and-inputs.tar`，再将生成的tar移入比赛离线节点。统一打包脚本保留源码和已解包依赖，并排除macOS元数据、下载缓存及旧构建。统一基础环境提供Linux x86_64、CPython 3.11、厂商Torch 2.9.0+das.opt1.dtk2604、DTK 26.04、GCC 11.4.0和驱动；其他Python依赖以及xmake随资产提供。统一首帧已随Git仓库提供于`assets/competition-first-frame.png`，默认运行不需要DOCX或本地额外图片；固定模型权重仍由赛事环境提供。材料来源和必须提供的基础环境见[材料清单](reproduce/材料清单.md)。
 
 ## 创建独立环境
 
